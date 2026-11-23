@@ -1,72 +1,73 @@
-# TextGrab
+# Anatej C2S
 
-[![Download APK](https://img.shields.io/github/v/release/notune/TextGrab?label=Download%20APK&color=2563EB)](https://github.com/notune/TextGrab/releases/latest)
-[![Get it on Obtainium](https://img.shields.io/badge/Get%20it%20on-Obtainium-1B2734)](https://apps.obtainium.page/redirect?r=obtainium://add/https%3A%2F%2Fgithub.com%2Fnotune%2FTextGrab)
+Anatej C2S copies text from anywhere on an Android screen. It reads pixels, not
+just selectable text nodes, so it works on images, video frames, and games.
+Recognition runs on the device with a bundled ML Kit model. The app has no
+internet permission and does not need Google Play services.
 
-Select and copy text from any image on de-googled Android (GrapheneOS,
-CalyxOS, LineageOS, ...). Works like iOS Live Text or the text selection on
-Pixel phones, but fully local and without Google Play services.
+## Features
 
-## How to use
+- Floating picker over any app. Tap it, draw around the text, then copy.
+- Bottom-corner swipe trigger, with a choice of left, right, or both corners.
+- Live preview of the corner touch area while adjusting size and position.
+- Customizable picker button: size, colour, opacity, and snap-to-edge.
+- Word-level text selection after capture, plus select-all, copy all, share,
+  and web search.
+- Quick-settings tile and image share/open-with for screenshots and photos.
 
-**Main workflow, from anything on your screen to copied text in seconds:**
+## Requirements
 
-1. Swipe down and tap the **OCR screenshot** tile
-2. Tap or drag over the text, then copy
+- Android 12 (API 31) or newer for screen capture through the floating picker
+  or corner swipe.
+- Android 8 (API 26) or newer for opening or sharing existing images.
+- An accessibility service must be enabled once in system settings. It only
+  takes a screenshot when you trigger it and reads no screen content.
 
-One-time setup: open quick settings, tap the edit (pencil) button and drag
-the **OCR screenshot** tile into your tiles. Then enable instant capture via
-the button on the app's home screen, so the tile can take the screenshot by
-itself (Android 12+, uses a screenshot-only accessibility service that reads
-no screen content). Without instant capture, take a screenshot first and the
-tile opens it.
+## Setup
 
-**Second workflow, for existing images:**
+1. Install the APK and open Anatej C2S.
+2. Tap **Enable instant capture** and switch on **Anatej C2S capture** in
+   system Accessibility settings.
+3. Back in the app, tap **Floating picker: off** to show the draggable button,
+   or open **Customize picker** and enable **Swipe bottom corner to capture**.
+4. Tap the button, or swipe up from a bottom corner, then draw around the text
+   and press **Copy**.
 
-Share any image from any app (gallery, browser, messenger) to **TextGrab**
-and the text is selectable. Opening image files with TextGrab from a file
-manager works too, as does picking an image from the app's home screen.
+The corner swipe uses a transparent accessibility overlay. On some phones it
+can overlap the system navigation gesture. The active corners, touch-box size,
+distance from the side, and distance from the bottom are all adjustable.
 
-## Screenshots
+## Privacy
 
-| Tap a word | Long-press and drag | Full text view |
-|---|---|---|
-| ![Select a word](screenshots/select_word.png) | ![Sweep selection](screenshots/sweep_selection.png) | ![Text view](screenshots/text_view.png) |
+- No `INTERNET` or `ACCESS_NETWORK_STATE` permission.
+- Captured frames stay in memory and are not written to disk by the app.
+- No analytics, ads, accounts, or background screen monitoring.
+- Windows marked `FLAG_SECURE` cannot be captured, including banking and
+  password screens.
 
-## How it works
+## Languages
 
-The app bundles Google's ML Kit **on-device** text recognizer, the same class
-of neural model that powers Pixel Live Text. The model is packaged inside the
-APK, so recognition:
-
-- runs entirely on the device. The app has **no internet permission**.
-- needs **no Google Play services** and works on GrapheneOS out of the box.
-- is fast: typically well under a second per screenshot on real hardware.
-
-## Supported languages
-
-All Latin-script languages, including:
-
-English, German, French, Spanish, Italian, Portuguese, Dutch, Polish, Czech,
-Danish, Swedish, Norwegian, Finnish, Hungarian, Romanian, Turkish, Croatian,
-Slovak, Slovenian, Estonian, Latvian, Lithuanian, Albanian, Catalan, Basque,
-Galician, Icelandic, Irish, Maltese, Swahili, Tagalog, Vietnamese (partial,
-some diacritics may be missed) and more, plus digits and common punctuation.
-
-Chinese, Japanese, Korean and Devanagari need separate ML Kit model packs
-(roughly 20 MB each). They are not included yet but are easy to add. Open an
-issue if you want one of them.
+The bundled Latin recognizer covers English, German, French, Spanish, Italian,
+Portuguese, Dutch, Polish, Czech, Danish, Swedish, Norwegian, Finnish,
+Hungarian, Romanian, Turkish, and other Latin-script languages. Chinese,
+Japanese, Korean, and Devanagari need separate model packs and are not bundled.
 
 ## Building
+
+```sh
+./gradlew assembleDebug
+```
+
+Output: `app/build/outputs/apk/debug/app-debug.apk`.
+
+For a release build:
 
 ```sh
 ./gradlew assembleRelease
 ```
 
-Output: `app/build/outputs/apk/release/app-release.apk`.
-
-To build a signed release, create a keystore and put its credentials in
-`keystore/keystore.properties` (this directory is gitignored):
+Without a keystore the release APK is unsigned. To sign it, create
+`keystore/keystore.properties` (gitignored):
 
 ```properties
 storeFile=keystore/your-release.jks
@@ -75,48 +76,19 @@ keyAlias=...
 keyPassword=...
 ```
 
-Without that file the release build is unsigned. Keep your keystore safe:
-updates must be signed with the same key.
+Keep the keystore safe. Android rejects updates signed with a different key.
 
-## Installing with Obtainium
+## Attribution
 
-Tap the Obtainium badge above on your phone (or add
-`https://github.com/notune/TextGrab` as an app source in
-[Obtainium](https://github.com/ImranR98/Obtainium)) to install TextGrab and
-get updates straight from this repo's releases.
+Anatej C2S is a modified fork of [TextGrab](https://github.com/notune/TextGrab)
+by Noah (notune), used under the MIT License. The original copyright notice is
+preserved in [LICENSE](LICENSE).
 
-## Verifying the APK
-
-Release APKs are signed with this certificate (package + SHA-256, ready to
-paste into [AppVerifier](https://github.com/soupslurpr/AppVerifier)):
-
-```
-dev.noah.textgrab
-AB:C4:BB:AE:C5:6F:D3:DB:AB:AC:C8:62:D0:B4:5D:29:3B:53:CC:40:BF:67:D7:25:3B:3E:1B:7D:2D:48:0C:31
-```
-
-On a computer you can check a downloaded APK with:
-
-```sh
-apksigner verify --print-certs TextGrab.apk
-```
-
-After the first install, Android itself rejects any update that is not
-signed with the same key.
-
-## Notes
-
-- `minSdk 26` (Android 8.0), `targetSdk 36`.
-- The APK is ~43 MB; ~30 MB of that is the bundled recognition model.
-- Photo permission is only requested for the "latest screenshot" feature.
-  Images opened via share or the picker need no permission at all.
+The bundled ML Kit text recognition SDK and its model are proprietary Google
+software, used under the [ML Kit Terms of Service](https://developers.google.com/ml-kit/terms).
+They are downloaded from Google's Maven repository at build time and are not
+stored in this repository.
 
 ## License
 
-The app source code is licensed under the [MIT License](LICENSE).
-
-The bundled ML Kit text recognition SDK and its model are proprietary Google
-software, used and redistributed under the
-[ML Kit Terms of Service](https://developers.google.com/ml-kit/terms). They
-are pulled from Google's Maven repository at build time and are not part of
-this repository.
+MIT License. See [LICENSE](LICENSE).

@@ -3,8 +3,8 @@
     <string name="intent_extract_text">Text erkennen</string>
     <string name="tile_label">OCR Screenshot</string>
 
-    <string name="home_subtitle">Text in beliebigen Bildern markieren und kopieren.\nAlles läuft lokal auf dem Gerät — ohne Internet, ohne Google-Dienste.</string>
-    <string name="home_hint">Tipp: Teile ein beliebiges Bild mit TextGrab oder füge die Kachel „OCR Screenshot" zu den Schnelleinstellungen hinzu — Screenshot machen, Kachel antippen, Text markieren.</string>
+    <string name="home_subtitle">Text in beliebigen Bildern markieren und kopieren.\nDie Erkennung läuft lokal auf dem Gerät, ohne Internet und ohne Google-Dienste.</string>
+    <string name="home_hint">Tippe auf den schwebenden Auswähler in einer beliebigen App, markiere den Text und kopiere ihn. Bilder teilen und die Schnelleinstellungs-Kachel funktionieren ebenfalls.</string>
     <string name="pick_image">Bild auswählen</string>
     <string name="latest_screenshot">Letzter Screenshot</string>
 
@@ -20,8 +20,40 @@
     <string name="recognized_text">Erkannter Text</string>
 
     <string name="enable_instant_capture">Sofortaufnahme aktivieren</string>
-    <string name="a11y_label">TextGrab Sofortaufnahme</string>
-    <string name="a11y_description">Erlaubt der Kachel „OCR Screenshot", den Bildschirm selbst aufzunehmen — ein Tipp auf die Kachel genügt. TextGrab macht nur dann einen Screenshot, wenn die Kachel angetippt wird. Es liest keine Bildschirminhalte, beobachtet keine Eingaben und hat keinen Internetzugriff.</string>
+    <string name="floating_bubble_on">Schwebender Auswähler: an</string>
+    <string name="floating_bubble_off">Schwebender Auswähler: aus</string>
+    <string name="pick_region_hint">Markiere den Text, den du kopieren möchtest</string>
+    <string name="whole_screen">Ganzer Bildschirm</string>
+    <string name="cancel">Abbrechen</string>
+    <string name="bubble_content_description">Text vom Bildschirm auswählen</string>
+    <string name="capture_busy">Warte einen Moment vor der nächsten Aufnahme</string>
+    <string name="capture_secure">Dieser Bildschirm darf nicht aufgenommen werden</string>
+    <string name="capture_error">Aufnahme fehlgeschlagen. Bitte erneut versuchen.</string>
+
+    <string name="customize_picker">Auswähler anpassen</string>
+    <string name="picker_settings">Einstellungen für den Auswähler</string>
+    <string name="bubble_size">Größe der Schaltfläche</string>
+    <string name="bubble_opacity">Deckkraft der Schaltfläche</string>
+    <string name="bubble_color">Farbe der Schaltfläche</string>
+    <string name="snap_to_edge">Nach dem Ziehen am Rand einrasten</string>
+    <string name="corner_swipe">Untere Ecke wischen zum Aufnehmen</string>
+    <string name="corner_selection">Aktive Ecken</string>
+    <string name="corner_left">Links</string>
+    <string name="corner_right">Rechts</string>
+    <string name="corner_both">Beide</string>
+    <string name="corner_box_width">Breite der Eckenfläche</string>
+    <string name="corner_box_height">Höhe der Eckenfläche</string>
+    <string name="corner_box_inset">Abstand von der Seite</string>
+    <string name="corner_box_lift">Abstand vom unteren Rand</string>
+    <string name="corner_swipe_hint">Wische von der unteren Ecke nach oben, um Text auszuwählen</string>
+    <string name="corner_swipe_note">Die Ecken-Geste kann mit den Navigationsgesten des Telefons überlappen.</string>
+    <string name="color_blue">Blau</string>
+    <string name="color_red">Rot</string>
+    <string name="color_green">Grün</string>
+    <string name="color_purple">Lila</string>
+    <string name="color_orange">Orange</string>
+    <string name="a11y_label">Anatej C2S Aufnahme</string>
+    <string name="a11y_description">Ermöglicht Anatej C2S, den aktuellen Bildschirm aufzunehmen, wenn du den schwebenden Auswähler tippst, eine untere Ecke wischst oder die Kachel „OCR Screenshot" tippst. Anatej C2S erstellt nur auf Anfrage einen Screenshot. Es liest keine Bildschirminhalte, beobachtet keine Eingaben und hat keinen Internetzugriff.</string>
     <string name="capture_failed">Aufnahme fehlgeschlagen, letzter Screenshot wird geöffnet</string>
 
     <string name="no_text_found">Kein Text im Bild gefunden</string>

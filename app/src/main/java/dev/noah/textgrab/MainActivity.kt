@@ -87,6 +87,10 @@ class MainActivity : AppCompatActivity(), SelectableOcrView.Listener {
                 startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
             }
         }
+        binding.btnBubble.setOnClickListener { toggleFloatingPicker() }
+        binding.btnCustomize.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
 
         binding.btnBack.setOnClickListener { onBackFromViewer() }
         binding.btnSelectAll.setOnClickListener { binding.ocrView.selectAll() }
@@ -124,6 +128,35 @@ class MainActivity : AppCompatActivity(), SelectableOcrView.Listener {
         // Offer the accessibility-based instant capture where supported.
         binding.btnEnableCapture.isVisible =
             Build.VERSION.SDK_INT >= 31 && !isCaptureServiceEnabled()
+
+        val bubbleAvailable = Build.VERSION.SDK_INT >= 31
+        binding.btnBubble.isVisible = bubbleAvailable
+        if (bubbleAvailable) {
+            val prefs = getSharedPreferences(
+                CaptureAccessibilityService.PREFS, MODE_PRIVATE
+            )
+            val enabled = prefs.getBoolean(CaptureAccessibilityService.PREF_BUBBLE, false)
+            binding.btnBubble.setText(
+                if (enabled) R.string.floating_bubble_on else R.string.floating_bubble_off
+            )
+            if (enabled) CaptureAccessibilityService.instance?.setBubbleVisible(true)
+        }
+    }
+
+    private fun toggleFloatingPicker() {
+        if (Build.VERSION.SDK_INT < 31) return
+        if (!isCaptureServiceEnabled()) {
+            runCatching {
+                startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }
+            return
+        }
+        val prefs = getSharedPreferences(CaptureAccessibilityService.PREFS, MODE_PRIVATE)
+        val enabled = !prefs.getBoolean(CaptureAccessibilityService.PREF_BUBBLE, false)
+        CaptureAccessibilityService.instance?.setBubbleVisible(enabled)
+        binding.btnBubble.setText(
+            if (enabled) R.string.floating_bubble_on else R.string.floating_bubble_off
+        )
     }
 
     /** Checks the system setting rather than the live service instance, which

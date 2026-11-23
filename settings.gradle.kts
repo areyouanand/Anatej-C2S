@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "TextGrab"
+rootProject.name = "Anatej C2S"
 include(":app")

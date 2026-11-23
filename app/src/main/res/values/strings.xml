@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name" translatable="false">TextGrab</string>
+    <string name="app_name" translatable="false">Anatej C2S</string>
     <string name="intent_extract_text">Extract text</string>
     <string name="tile_label">OCR screenshot</string>
 
-    <string name="home_subtitle">Select and copy text from any image.\nEverything runs on this device — no internet, no Google services.</string>
-    <string name="home_hint">Tip: share any image to TextGrab, or add the "OCR screenshot" tile to your quick settings — take a screenshot, tap the tile, select the text.</string>
+    <string name="home_subtitle">Select and copy text from any image.\nRecognition runs on this device without internet or Google services.</string>
+    <string name="home_hint">Tap the floating picker over any app, draw around the text, then copy. Sharing an image or using the quick-settings tile works too.</string>
     <string name="pick_image">Choose image</string>
     <string name="latest_screenshot">Latest screenshot</string>
 
@@ -21,9 +21,41 @@
     <string name="recognized_text">Recognized text</string>
 
     <string name="enable_instant_capture">Enable instant capture</string>
-    <string name="a11y_label">TextGrab instant capture</string>
-    <string name="a11y_description">Lets the OCR screenshot tile capture the screen by itself, so one tap on the tile is enough. TextGrab only takes a screenshot when you tap the tile. It does not read screen content, does not observe your input and has no internet access.</string>
+    <string name="floating_bubble_on">Floating picker: on</string>
+    <string name="floating_bubble_off">Floating picker: off</string>
+    <string name="a11y_label">Anatej C2S capture</string>
+    <string name="a11y_description">Lets Anatej C2S capture the current screen when you tap the floating picker, swipe a bottom corner, or use the OCR screenshot tile. Anatej C2S only takes a screenshot when you ask it to. It does not read screen content, does not observe your input and has no internet access.</string>
     <string name="capture_failed">Screen capture failed, opening latest screenshot instead</string>
+    <string name="pick_region_hint">Draw around the text you want to copy</string>
+    <string name="whole_screen">Whole screen</string>
+    <string name="cancel">Cancel</string>
+    <string name="bubble_content_description">Pick text from screen</string>
+    <string name="capture_busy">Wait a moment before capturing again</string>
+    <string name="capture_secure">This screen does not allow capturing</string>
+    <string name="capture_error">Screen capture failed. Try again.</string>
+
+    <string name="customize_picker">Customize picker</string>
+    <string name="picker_settings">Picker settings</string>
+    <string name="bubble_size">Button size</string>
+    <string name="bubble_opacity">Button opacity</string>
+    <string name="bubble_color">Button colour</string>
+    <string name="snap_to_edge">Snap to edge after dragging</string>
+    <string name="corner_swipe">Swipe bottom corner to capture</string>
+    <string name="corner_selection">Active corners</string>
+    <string name="corner_left">Left</string>
+    <string name="corner_right">Right</string>
+    <string name="corner_both">Both</string>
+    <string name="corner_box_width">Corner box width</string>
+    <string name="corner_box_height">Corner box height</string>
+    <string name="corner_box_inset">Distance from side</string>
+    <string name="corner_box_lift">Distance from bottom</string>
+    <string name="corner_swipe_hint">Swipe up from the bottom corner to pick text</string>
+    <string name="corner_swipe_note">The corner gesture may overlap your phone\'s own navigation gestures.</string>
+    <string name="color_blue">Blue</string>
+    <string name="color_red">Red</string>
+    <string name="color_green">Green</string>
+    <string name="color_purple">Purple</string>
+    <string name="color_orange">Orange</string>
 
     <string name="no_text_found">No text found in this image</string>
     <string name="no_screenshot_found">No screenshot found</string>
