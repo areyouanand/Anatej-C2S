@@ -1,27 +1,53 @@
 package com.anatej.c2s
 
+import android.Manifest
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import com.anatej.c2s.CaptureAccessibilityService.Companion.BUBBLE_COLORS
 import com.anatej.c2s.CaptureAccessibilityService.Companion.CORNER_BOTH
 import com.anatej.c2s.CaptureAccessibilityService.Companion.CORNER_LEFT
 import com.anatej.c2s.CaptureAccessibilityService.Companion.CORNER_RIGHT
 import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_ALPHA
+import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_BARCODE
 import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_COLOR
+import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_CONFIDENCE
 import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_EDGE_CORNER
 import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_EDGE_HEIGHT_DP
 import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_EDGE_INSET_DP
 import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_EDGE_LIFT_DP
 import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_EDGE_SWIPE
 import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_EDGE_WIDTH_DP
+import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_HAPTIC
+import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_HIDE_CALLS
+import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_HIDE_KEYBOARD
+import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_MAGNIFIER
+import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_OCR_SCRIPT
 import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_SNAP
+import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_SOUND
 import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_SIZE_DP
+import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_THEME
 import com.anatej.c2s.CaptureAccessibilityService.Companion.PREFS
+import com.anatej.c2s.CaptureAccessibilityService.Companion.SCRIPT_AUTO
+import com.anatej.c2s.CaptureAccessibilityService.Companion.SCRIPT_CHINESE
+import com.anatej.c2s.CaptureAccessibilityService.Companion.SCRIPT_DEVANAGARI
+import com.anatej.c2s.CaptureAccessibilityService.Companion.SCRIPT_JAPANESE
+import com.anatej.c2s.CaptureAccessibilityService.Companion.SCRIPT_KOREAN
+import com.anatej.c2s.CaptureAccessibilityService.Companion.SCRIPT_LATIN
+import com.anatej.c2s.CaptureAccessibilityService.Companion.THEME_DARK
+import com.anatej.c2s.CaptureAccessibilityService.Companion.THEME_LIGHT
+import com.anatej.c2s.CaptureAccessibilityService.Companion.THEME_SYSTEM
 import com.anatej.c2s.databinding.ActivitySettingsBinding
 
-/** Controls the picker overlay: size, colour, opacity, snapping and corner swipe. */
+/** Controls the picker overlay, recognition, appearance and settings backup. */
 class SettingsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySettingsBinding
@@ -38,11 +64,79 @@ class SettingsActivity : AppCompatActivity() {
         arrayOf(binding.cornerLeft, binding.cornerRight, binding.cornerBoth)
     }
 
+    private val themeButtons by lazy {
+        arrayOf(binding.themeSystem, binding.themeLight, binding.themeDark)
+    }
+
+    private val scripts by lazy { OcrEngine.availableScripts }
+
+    private val exportLauncher =
+        registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+            if (uri == null) return@registerForActivityResult
+            runCatching {
+                contentResolver.openOutputStream(uri)?.use { stream ->
+                    stream.write(PrefsBackup.export(prefs).toByteArray(Charsets.UTF_8))
+                }
+            }.onSuccess {
+                Toast.makeText(this, R.string.settings_exported, Toast.LENGTH_SHORT).show()
+            }.onFailure {
+                Toast.makeText(this, R.string.settings_import_failed, Toast.LENGTH_SHORT).show()
+            }
+        }
+
+    private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@registerForActivityResult
+        val text = contentResolver.openInputStream(uri)?.use { it.bufferedReader().readText() }
+        if (text == null) {
+            Toast.makeText(this, R.string.settings_import_failed, Toast.LENGTH_SHORT).show()
+            return@registerForActivityResult
+        }
+        runCatching { PrefsBackup.import(prefs, text) }
+            .onSuccess {
+                App.applyTheme(this)
+                if (Build.VERSION.SDK_INT >= 31) {
+                    CaptureAccessibilityService.instance?.refreshOverlays()
+                    CaptureAccessibilityService.instance?.refreshCallWatch()
+                }
+                Toast.makeText(this, R.string.settings_imported, Toast.LENGTH_SHORT).show()
+                // Recreate so every control is rebound from the imported values
+                // without firing the change listeners during the reset.
+                recreate()
+            }
+            .onFailure {
+                Toast.makeText(this, R.string.settings_import_failed, Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private val callPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) {
+                prefs.edit().putBoolean(PREF_HIDE_CALLS, true).apply()
+                if (Build.VERSION.SDK_INT >= 31) {
+                    CaptureAccessibilityService.instance?.refreshCallWatch()
+                }
+            } else {
+                binding.switchHideCalls.isChecked = false
+                Toast.makeText(this, R.string.call_permission_denied, Toast.LENGTH_LONG).show()
+            }
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        binding.spinnerScript.adapter = ArrayAdapter(
+            this, android.R.layout.simple_spinner_dropdown_item, scripts.map { scriptLabel(it) }
+        )
+        binding.scriptNote.visibility =
+            if (BuildConfig.FULL_LANGUAGES) android.view.View.GONE else android.view.View.VISIBLE
+
+        render()
+        setupListeners()
+    }
+
+    private fun render() {
         binding.sliderSize.value = prefs.getInt(PREF_SIZE_DP, 56).toFloat().coerceIn(40f, 96f)
         binding.sliderAlpha.value = prefs.getInt(PREF_ALPHA, 100).toFloat().coerceIn(30f, 100f)
 
@@ -54,18 +148,14 @@ class SettingsActivity : AppCompatActivity() {
         binding.switchEdge.isChecked = prefs.getBoolean(PREF_EDGE_SWIPE, false)
 
         val corner = prefs.getString(PREF_EDGE_CORNER, CORNER_BOTH) ?: CORNER_BOTH
-        val cornerIndex = when (corner) {
+        cornerButtons[when (corner) {
             CORNER_LEFT -> 0
             CORNER_RIGHT -> 1
             else -> 2
-        }
-        cornerButtons[cornerIndex].isChecked = true
+        }].isChecked = true
         val edgeOn = binding.switchEdge.isChecked
-        binding.cornerGroup.isEnabled = edgeOn
-        binding.sliderCornerWidth.isEnabled = edgeOn
-        binding.sliderCornerHeight.isEnabled = edgeOn
-        binding.sliderCornerInset.isEnabled = edgeOn
-        binding.sliderCornerLift.isEnabled = edgeOn
+        listOf(binding.cornerGroup, binding.sliderCornerWidth, binding.sliderCornerHeight,
+            binding.sliderCornerInset, binding.sliderCornerLift).forEach { it.isEnabled = edgeOn }
 
         binding.sliderCornerWidth.value = prefs.getInt(PREF_EDGE_WIDTH_DP, 72)
             .toFloat().coerceIn(40f, 140f)
@@ -75,8 +165,27 @@ class SettingsActivity : AppCompatActivity() {
             .toFloat().coerceIn(0f, 160f)
         binding.sliderCornerLift.value = prefs.getInt(PREF_EDGE_LIFT_DP, 8)
             .toFloat().coerceIn(0f, 200f)
-        updatePreview()
 
+        val theme = prefs.getString(PREF_THEME, THEME_SYSTEM) ?: THEME_SYSTEM
+        themeButtons[when (theme) {
+            THEME_LIGHT -> 1
+            THEME_DARK -> 2
+            else -> 0
+        }].isChecked = true
+
+        val script = prefs.getString(PREF_OCR_SCRIPT, SCRIPT_LATIN) ?: SCRIPT_LATIN
+        binding.spinnerScript.setSelection(scripts.indexOf(script).coerceAtLeast(0))
+        binding.switchBarcode.isChecked = prefs.getBoolean(PREF_BARCODE, true)
+        binding.switchConfidence.isChecked = prefs.getBoolean(PREF_CONFIDENCE, true)
+        binding.switchMagnifier.isChecked = prefs.getBoolean(PREF_MAGNIFIER, true)
+        binding.switchHaptic.isChecked = prefs.getBoolean(PREF_HAPTIC, true)
+        binding.switchSound.isChecked = prefs.getBoolean(PREF_SOUND, false)
+        binding.switchHideKeyboard.isChecked = prefs.getBoolean(PREF_HIDE_KEYBOARD, true)
+        binding.switchHideCalls.isChecked = prefs.getBoolean(PREF_HIDE_CALLS, false)
+        updatePreview()
+    }
+
+    private fun setupListeners() {
         binding.sliderSize.addOnChangeListener { _, value, fromUser ->
             if (fromUser) save { putInt(PREF_SIZE_DP, value.toInt()) }
         }
@@ -113,14 +222,73 @@ class SettingsActivity : AppCompatActivity() {
             if (fromUser) save { putInt(PREF_EDGE_LIFT_DP, value.toInt()) }
         }
         binding.switchEdge.setOnCheckedChangeListener { _, checked ->
-            binding.cornerGroup.isEnabled = checked
-            binding.sliderCornerWidth.isEnabled = checked
-            binding.sliderCornerHeight.isEnabled = checked
-            binding.sliderCornerInset.isEnabled = checked
-            binding.sliderCornerLift.isEnabled = checked
+            listOf(binding.cornerGroup, binding.sliderCornerWidth, binding.sliderCornerHeight,
+                binding.sliderCornerInset, binding.sliderCornerLift).forEach { it.isEnabled = checked }
             save { putBoolean(PREF_EDGE_SWIPE, checked) }
         }
+
+        binding.themeGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked) return@addOnButtonCheckedListener
+            val mode = when (checkedId) {
+                R.id.themeLight -> THEME_LIGHT
+                R.id.themeDark -> THEME_DARK
+                else -> THEME_SYSTEM
+            }
+            prefs.edit().putString(PREF_THEME, mode).apply()
+            App.applyTheme(this)
+        }
+        binding.spinnerScript.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+            override fun onItemSelected(parent: AdapterView<*>?, view: android.view.View?, pos: Int, id: Long) {
+                save { putString(PREF_OCR_SCRIPT, scripts[pos]) }
+            }
+        }
+        binding.switchBarcode.setOnCheckedChangeListener { _, checked ->
+            save { putBoolean(PREF_BARCODE, checked) }
+        }
+        binding.switchConfidence.setOnCheckedChangeListener { _, checked ->
+            save { putBoolean(PREF_CONFIDENCE, checked) }
+        }
+        binding.switchMagnifier.setOnCheckedChangeListener { _, checked ->
+            save { putBoolean(PREF_MAGNIFIER, checked) }
+        }
+        binding.switchHaptic.setOnCheckedChangeListener { _, checked ->
+            save { putBoolean(PREF_HAPTIC, checked) }
+        }
+        binding.switchSound.setOnCheckedChangeListener { _, checked ->
+            save { putBoolean(PREF_SOUND, checked) }
+        }
+        binding.switchHideKeyboard.setOnCheckedChangeListener { _, checked ->
+            save { putBoolean(PREF_HIDE_KEYBOARD, checked) }
+        }
+        binding.switchHideCalls.setOnCheckedChangeListener { _, checked ->
+            if (checked && ContextCompat.checkSelfPermission(
+                    this, Manifest.permission.READ_PHONE_STATE
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                callPermissionLauncher.launch(Manifest.permission.READ_PHONE_STATE)
+                return@setOnCheckedChangeListener
+            }
+            save { putBoolean(PREF_HIDE_CALLS, checked) }
+            if (Build.VERSION.SDK_INT >= 31) {
+                CaptureAccessibilityService.instance?.refreshCallWatch()
+            }
+        }
+
+        binding.btnExport.setOnClickListener { exportLauncher.launch("anatej-c2s-settings.json") }
+        binding.btnImport.setOnClickListener {
+            importLauncher.launch(arrayOf("application/json", "*/*"))
+        }
     }
+
+    private fun scriptLabel(script: String) = getString(when (script) {
+        SCRIPT_AUTO -> R.string.script_auto
+        SCRIPT_CHINESE -> R.string.script_chinese
+        SCRIPT_JAPANESE -> R.string.script_japanese
+        SCRIPT_KOREAN -> R.string.script_korean
+        SCRIPT_DEVANAGARI -> R.string.script_devanagari
+        else -> R.string.script_latin
+    })
 
     private fun save(edit: android.content.SharedPreferences.Editor.() -> Unit) {
         prefs.edit().apply(edit).apply()

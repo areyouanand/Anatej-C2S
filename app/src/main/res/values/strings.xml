@@ -31,7 +31,7 @@
     <string name="cancel">Cancel</string>
     <string name="bubble_content_description">Pick text from screen</string>
     <string name="capture_busy">Wait a moment before capturing again</string>
-    <string name="capture_secure">This screen does not allow capturing</string>
+    <string name="capture_secure">This screen blocks screenshots. Banking, password and protected video screens cannot be captured by any app.</string>
     <string name="capture_error">Screen capture failed. Try again.</string>
 
     <string name="customize_picker">Customize picker</string>
@@ -68,4 +68,80 @@
     <string name="no_screenshot_found">No screenshot found</string>
     <string name="permission_needed">Photo access is needed to open your latest screenshot</string>
     <string name="load_failed">Could not open image. %1$s</string>
+
+    <!-- Capture feedback -->
+    <string name="feedback_settings">Feedback</string>
+    <string name="trigger_settings">Triggers</string>
+    <string name="capture_haptic">Vibrate on capture</string>
+    <string name="capture_sound">Play a sound on capture</string>
+
+    <!-- Appearance -->
+    <string name="appearance">Appearance</string>
+    <string name="theme_mode">Theme</string>
+    <string name="theme_system">Follow system</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+
+    <!-- Recognition -->
+    <string name="recognition">Recognition</string>
+    <string name="ocr_script">Text script</string>
+    <string name="script_auto">Auto detect</string>
+    <string name="script_latin">Latin</string>
+    <string name="script_chinese">Chinese</string>
+    <string name="script_japanese">Japanese</string>
+    <string name="script_korean">Korean</string>
+    <string name="script_devanagari">Devanagari</string>
+    <string name="script_note">Extra scripts are bundled only in the full-language build of this app.</string>
+    <string name="scan_barcodes">Scan QR codes and barcodes</string>
+    <string name="mark_uncertain">Underline uncertain words</string>
+    <string name="selection_magnifier">Magnifier while selecting</string>
+    <string name="barcodes_found">Codes found</string>
+    <string name="barcode_copy">Copy code</string>
+    <string name="barcode_open">Open link</string>
+    <string name="no_barcode_handler">No app can open this code</string>
+
+    <!-- Trigger behaviour -->
+    <string name="hide_on_keyboard">Hide picker while typing</string>
+    <string name="hide_on_calls">Hide picker during calls</string>
+    <string name="call_permission_note">Phone state access is used only to hide the picker during calls. Denying it keeps all other features working.</string>
+    <string name="call_permission_denied">Phone state access was denied; the picker will stay visible during calls</string>
+
+    <!-- Settings backup -->
+    <string name="settings_backup">Settings backup</string>
+    <string name="export_settings">Export settings</string>
+    <string name="import_settings">Import settings</string>
+    <string name="settings_exported">Settings exported</string>
+    <string name="settings_imported">Settings imported</string>
+    <string name="settings_import_failed">Could not read that settings file</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_1_title">Enable capture</string>
+    <string name="onboarding_1_body">Turn on Anatej C2S capture in Android Accessibility settings. The app takes a screenshot only when you trigger it and reads no screen content.</string>
+    <string name="onboarding_2_title">Trigger the picker</string>
+    <string name="onboarding_2_body">Tap the floating button over any app, or swipe up from a bottom corner. Both can be customized in Picker settings.</string>
+    <string name="onboarding_3_title">Draw and copy</string>
+    <string name="onboarding_3_body">Circle the text you want, then tap Copy. Recognition runs entirely on your device.</string>
+    <string name="onboarding_open_settings">Open accessibility settings</string>
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_done">Get started</string>
+    <string name="onboarding_skip">Skip</string>
+
+    <!-- Accessibility announcements -->
+    <string name="region_selected">Region selected. Recognizing text.</string>
+    <string name="selection_announcement">Selected text: %1$s</string>
+    <string name="rotate">Rotate 90 degrees</string>
+
+    <!-- Smart actions -->
+    <string name="action_call">Call</string>
+    <string name="action_email">Email</string>
+    <string name="action_open_link">Open link</string>
+    <string name="action_map">Find on map</string>
+    <string name="no_action_app">No app available for this action</string>
+
+    <!-- Clipboard history -->
+    <string name="clipboard_history">Clipboard history</string>
+    <string name="clipboard_history_empty">No copied text yet</string>
+    <string name="clipboard_clear">Clear history</string>
+    <string name="clipboard_cleared">History cleared</string>
+    <string name="clipboard_item">Copied text %1$d</string>
 </resources>

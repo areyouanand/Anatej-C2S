@@ -14,6 +14,11 @@
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
 
+    <!-- Short confirmation vibration when a capture trigger fires. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Only used when the user opts in to hiding the picker during calls. -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+
     <!-- Needed to resolve web-search / browser handlers on Android 11+ -->
     <queries>
         <intent>
@@ -22,6 +27,18 @@
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="tel" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="geo" />
         </intent>
     </queries>
 
@@ -68,6 +85,11 @@
 
         <activity
             android:name=".AboutActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden" />
+
+        <activity
+            android:name=".OnboardingActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden" />
 

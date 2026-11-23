@@ -13,6 +13,8 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
 import android.view.View
+import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.addCallback
 import androidx.activity.result.PickVisualMediaRequest
@@ -25,6 +27,7 @@ import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.snackbar.Snackbar
 import com.anatej.c2s.databinding.ActivityMainBinding
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +47,9 @@ class MainActivity : AppCompatActivity(), SelectableOcrView.Listener {
     private var currentBitmap: Bitmap? = null
     private var currentResult: OcrEngine.Result? = null
     private var launchedWithImage = false
+    private var onboardingShown = false
+
+    private fun prefs() = getSharedPreferences(CaptureAccessibilityService.PREFS, MODE_PRIVATE)
 
     private val pickImage =
         registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -91,6 +97,7 @@ class MainActivity : AppCompatActivity(), SelectableOcrView.Listener {
         binding.btnCustomize.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
+        binding.btnClipboard.setOnClickListener { showClipboardHistory() }
         binding.btnAbout.setOnClickListener {
             startActivity(Intent(this, AboutActivity::class.java))
         }
@@ -237,13 +244,26 @@ class MainActivity : AppCompatActivity(), SelectableOcrView.Listener {
     }
 
     private suspend fun processBitmap(bitmap: Bitmap) {
-        val result = OcrEngine.recognize(bitmap)
+        val settings = prefs()
+        val script = settings.getString(
+            CaptureAccessibilityService.PREF_OCR_SCRIPT,
+            CaptureAccessibilityService.SCRIPT_LATIN
+        ) ?: CaptureAccessibilityService.SCRIPT_LATIN
+        val result = OcrEngine.recognize(bitmap, script)
         currentBitmap = bitmap
         currentResult = result
+        binding.ocrView.magnifierEnabled =
+            settings.getBoolean(CaptureAccessibilityService.PREF_MAGNIFIER, true)
+        binding.ocrView.markUncertain =
+            settings.getBoolean(CaptureAccessibilityService.PREF_CONFIDENCE, true)
         binding.ocrView.setContent(bitmap, result)
         showViewer(loading = false)
         if (result.isEmpty) {
             Snackbar.make(binding.root, R.string.no_text_found, Snackbar.LENGTH_LONG).show()
+        }
+        if (settings.getBoolean(CaptureAccessibilityService.PREF_BARCODE, true)) {
+            val codes = runCatching { BarcodeEngine.scan(bitmap) }.getOrDefault(emptyList())
+            if (codes.isNotEmpty()) showBarcodeSheet(codes)
         }
     }
 
@@ -312,9 +332,16 @@ class MainActivity : AppCompatActivity(), SelectableOcrView.Listener {
         binding.viewerGroup.isVisible = false
         binding.progressGroup.isVisible = false
         binding.selectionToolbar.isVisible = false
+        binding.smartActionsScroll.isVisible = false
         binding.ocrView.clear()
         currentBitmap = null
         currentResult = null
+        if (!onboardingShown &&
+            !prefs().getBoolean(CaptureAccessibilityService.PREF_ONBOARDING_DONE, false)
+        ) {
+            onboardingShown = true
+            startActivity(Intent(this, OnboardingActivity::class.java))
+        }
     }
 
     private fun showViewer(loading: Boolean) {
@@ -333,9 +360,11 @@ class MainActivity : AppCompatActivity(), SelectableOcrView.Listener {
     override fun onSelectionChanged(text: String?, anchor: RectF?) {
         if (text == null || anchor == null) {
             binding.selectionToolbar.isVisible = false
+            binding.smartActionsScroll.isVisible = false
             return
         }
         binding.selectionToolbar.isVisible = true
+        updateSmartActions(text)
         binding.selectionToolbar.post { positionToolbar(anchor) }
     }
 
@@ -361,6 +390,7 @@ class MainActivity : AppCompatActivity(), SelectableOcrView.Listener {
     private fun copyToClipboard(text: String) {
         val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.app_name), text))
+        ClipboardHistory.add(prefs(), text)
         // Android 13+ shows its own clipboard confirmation overlay.
         if (Build.VERSION.SDK_INT < 33) {
             Snackbar.make(binding.root, R.string.copied, Snackbar.LENGTH_SHORT).show()
@@ -407,4 +437,167 @@ class MainActivity : AppCompatActivity(), SelectableOcrView.Listener {
         sheet.setContentView(view)
         sheet.show()
     }
+
+    // -------------------------------------------------------- smart actions
+
+    private fun updateSmartActions(text: String) {
+        val row = binding.smartActionsRow
+        row.removeAllViews()
+        val actions = ArrayList<Pair<Int, Intent>>()
+        val value = text.trim()
+
+        val url = android.util.Patterns.WEB_URL.matcher(value)
+        if (url.find()) {
+            val matched = url.group()
+            val link = if (matched.startsWith("http")) matched else "https://$matched"
+            actions += R.string.action_open_link to Intent(Intent.ACTION_VIEW, Uri.parse(link))
+        }
+        val email = android.util.Patterns.EMAIL_ADDRESS.matcher(value)
+        if (email.find()) {
+            actions += R.string.action_email to Intent(
+                Intent.ACTION_SENDTO, Uri.parse("mailto:${email.group()}")
+            )
+        }
+        val phone = android.util.Patterns.PHONE.matcher(value)
+        if (phone.find()) {
+            val digits = phone.group().filter { it.isDigit() || it == '+' }
+            if (digits.length >= 7) {
+                actions += R.string.action_call to Intent(Intent.ACTION_DIAL, Uri.parse("tel:$digits"))
+            }
+        }
+        val looksLikeAddress = value.length in 8..160 &&
+            value.any { it.isDigit() } &&
+            value.contains(
+                Regex("(?i)(street|str\\.|road|rd\\.|avenue|ave\\.|lane|ln\\.|drive|dr\\.|nagar|marg|house|flat|block|sector)")
+            )
+        if (looksLikeAddress) {
+            actions += R.string.action_map to Intent(
+                Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(value)}")
+            )
+        }
+
+        if (actions.isEmpty()) {
+            binding.smartActionsScroll.isVisible = false
+            return
+        }
+        actions.forEach { (label, intent) ->
+            row.addView(MaterialButton(this, null, R.style.SmallOutlinedButton).apply {
+                this.text = getString(label)
+                isAllCaps = false
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { marginEnd = 8 }
+                setOnClickListener {
+                    if (intent.resolveActivity(packageManager) != null) startActivity(intent)
+                    else Snackbar.make(binding.root, R.string.no_action_app, Snackbar.LENGTH_SHORT).show()
+                }
+            })
+        }
+        binding.smartActionsScroll.isVisible = true
+    }
+
+    // -------------------------------------------------------------- barcodes
+
+    private fun showBarcodeSheet(codes: List<String>) {
+        val sheet = BottomSheetDialog(this)
+        val view = layoutInflater.inflate(R.layout.sheet_barcode, null)
+        val list = view.findViewById<LinearLayout>(R.id.barcodeList)
+
+        codes.forEach { code ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(0, 8, 0, 8)
+            }
+            row.addView(TextView(this).apply {
+                text = code
+                setTextAppearance(R.style.SheetBodyLarge)
+                setTextIsSelectable(true)
+            })
+            val buttons = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+            }
+            buttons.addView(smallButton(R.string.barcode_copy) {
+                copyToClipboard(code)
+                sheet.dismiss()
+            })
+            if (code.startsWith("http://") || code.startsWith("https://")) {
+                val link = Intent(Intent.ACTION_VIEW, Uri.parse(code))
+                buttons.addView(smallButton(R.string.barcode_open) {
+                    if (link.resolveActivity(packageManager) != null) startActivity(link)
+                    else Snackbar.make(
+                        binding.root, R.string.no_barcode_handler, Snackbar.LENGTH_SHORT
+                    ).show()
+                })
+            }
+            row.addView(buttons)
+            list.addView(row)
+        }
+
+        view.findViewById<View>(R.id.barcodeClose).setOnClickListener { sheet.dismiss() }
+        sheet.setContentView(view)
+        sheet.show()
+    }
+
+    private fun smallButton(label: Int, click: View.OnClickListener): MaterialButton =
+        MaterialButton(this, null, R.style.SmallTextButton).apply {
+            text = getString(label)
+            isAllCaps = false
+            setOnClickListener(click)
+        }
+
+    // -------------------------------------------------------- clipboard list
+
+    private fun showClipboardHistory() {
+        val entries = ClipboardHistory.load(prefs())
+        val padding = (20 * resources.displayMetrics.density).toInt()
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(padding, padding, padding, padding)
+        }
+        container.addView(TextView(this).apply {
+            text = getString(R.string.clipboard_history)
+            setTextAppearance(R.style.SheetTitle)
+        })
+
+        val inner = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        if (entries.isEmpty()) {
+            inner.addView(TextView(this).apply {
+                text = getString(R.string.clipboard_history_empty)
+                setTextAppearance(R.style.SheetBody)
+                setPadding(0, 24, 0, 24)
+            })
+        } else {
+            entries.forEachIndexed { index, entry ->
+                val row = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = android.view.Gravity.CENTER_VERTICAL
+                    setPadding(0, 12, 0, 12)
+                    contentDescription = getString(R.string.clipboard_item, index + 1)
+                    setOnClickListener { copyToClipboard(entry.text) }
+                }
+                row.addView(TextView(this).apply {
+                    text = entry.text.replace('\n', ' ').take(120)
+                    maxLines = 2
+                    setTextAppearance(R.style.SheetBody)
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                })
+                row.addView(smallButton(R.string.copy) { copyToClipboard(entry.text) })
+                inner.addView(row)
+            }
+        }
+        container.addView(ScrollView(this).apply { addView(inner) })
+        container.addView(smallButton(R.string.clipboard_clear) {
+            ClipboardHistory.clear(prefs())
+            Snackbar.make(binding.root, R.string.clipboard_cleared, Snackbar.LENGTH_SHORT).show()
+            sheetRef?.dismiss()
+        })
+
+        val sheet = BottomSheetDialog(this)
+        sheetRef = sheet
+        sheet.setContentView(container)
+        sheet.show()
+    }
+
+    private var sheetRef: BottomSheetDialog? = null
 }

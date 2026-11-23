@@ -1,9 +1,11 @@
 package com.anatej.c2s
 
+import android.Manifest
 import android.accessibilityservice.AccessibilityService
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.PixelFormat
@@ -11,6 +13,8 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.telephony.TelephonyCallback
+import android.telephony.TelephonyManager
 import android.view.Display
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -70,6 +74,45 @@ class CaptureAccessibilityService : AccessibilityService() {
         const val PREF_ALPHA = "bubble_alpha"
         const val PREF_SNAP = "bubble_snap_to_edge"
 
+        const val PREF_HAPTIC = "capture_haptic"
+        const val PREF_SOUND = "capture_sound"
+        const val PREF_THEME = "theme_mode"
+        const val PREF_OCR_SCRIPT = "ocr_script"
+        const val PREF_BARCODE = "scan_barcodes"
+        const val PREF_CONFIDENCE = "mark_uncertain_words"
+        const val PREF_MAGNIFIER = "selection_magnifier"
+        const val PREF_HIDE_KEYBOARD = "hide_on_keyboard"
+        const val PREF_HIDE_CALLS = "hide_on_calls"
+        const val PREF_CLIPBOARD_HISTORY = "clipboard_history_json"
+        const val PREF_ONBOARDING_DONE = "onboarding_done"
+
+        const val THEME_SYSTEM = "system"
+        const val THEME_LIGHT = "light"
+        const val THEME_DARK = "dark"
+
+        const val SCRIPT_AUTO = "auto"
+        const val SCRIPT_LATIN = "latin"
+        const val SCRIPT_CHINESE = "chinese"
+        const val SCRIPT_JAPANESE = "japanese"
+        const val SCRIPT_KOREAN = "korean"
+        const val SCRIPT_DEVANAGARI = "devanagari"
+
+        /** Preference keys grouped by stored type, used by settings export/import. */
+        val BOOLEAN_KEYS = setOf(
+            PREF_BUBBLE, PREF_EDGE_SWIPE, PREF_SNAP, PREF_HAPTIC, PREF_SOUND,
+            PREF_BARCODE, PREF_CONFIDENCE, PREF_MAGNIFIER, PREF_HIDE_KEYBOARD,
+            PREF_HIDE_CALLS
+        )
+        val INT_KEYS = setOf(
+            PREF_SIZE_DP, PREF_ALPHA, PREF_COLOR, PREF_EDGE_WIDTH_DP,
+            PREF_EDGE_HEIGHT_DP, PREF_EDGE_INSET_DP, PREF_EDGE_LIFT_DP
+        )
+        // Clipboard history is deliberately excluded: exported settings may be
+        // shared, and copied text should never travel with them.
+        val STRING_KEYS = setOf(
+            PREF_THEME, PREF_OCR_SCRIPT, PREF_EDGE_CORNER
+        )
+
         val BUBBLE_COLORS = intArrayOf(
             0xFF3B82F6.toInt(),
             0xFFEF4444.toInt(),
@@ -90,23 +133,94 @@ class CaptureAccessibilityService : AccessibilityService() {
     private var windowManager: WindowManager? = null
     private val edgeViews = ArrayList<View>()
 
+    private var keyboardVisible = false
+    private var callActive = false
+    private var telephonyCallback: TelephonyCallback? = null
+
     private fun prefs() = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
-        if (Build.VERSION.SDK_INT >= 31) refreshOverlays()
+        if (Build.VERSION.SDK_INT >= 31) {
+            refreshOverlays()
+            setupCallWatch()
+        }
     }
 
     override fun onDestroy() {
+        if (Build.VERSION.SDK_INT >= 31) stopCallWatch()
         removeEdgeStrips()
         hideBubble()
         instance = null
         super.onDestroy()
     }
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
+    /**
+     * The keyboard is detected from window-state accessibility events, so no
+     * extra permission is needed. The picker is only hidden, never destroyed.
+     */
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (Build.VERSION.SDK_INT < 31 || event == null) return
+        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
+        val enabled = prefs().getBoolean(PREF_HIDE_KEYBOARD, true)
+        val source = "${event.className?.toString().orEmpty()} " +
+            event.packageName?.toString().orEmpty()
+        val isIme = enabled && source.contains("inputmethod", ignoreCase = true)
+        if (isIme != keyboardVisible) {
+            keyboardVisible = isIme
+            applySuppression()
+        }
+    }
+
     override fun onInterrupt() = Unit
+
+    private fun applySuppression() {
+        val hide = keyboardVisible || callActive
+        val visibility = if (hide) View.GONE else View.VISIBLE
+        bubbleView?.visibility = visibility
+        edgeViews.forEach { it.visibility = visibility }
+    }
+
+    /** Re-reads the call-hiding preference and (re)registers the listener. */
+    @RequiresApi(31)
+    fun refreshCallWatch() {
+        stopCallWatch()
+        setupCallWatch()
+    }
+
+    @RequiresApi(31)
+    private fun setupCallWatch() {
+        if (!prefs().getBoolean(PREF_HIDE_CALLS, false)) return
+        if (checkSelfPermission(Manifest.permission.READ_PHONE_STATE) !=
+            PackageManager.PERMISSION_GRANTED
+        ) return
+        val manager = getSystemService(TELEPHONY_SERVICE) as? TelephonyManager ?: return
+        val callback = object : TelephonyCallback(), TelephonyCallback.CallStateListener {
+            override fun onCallStateChanged(state: Int) {
+                val active = state != TelephonyManager.CALL_STATE_IDLE
+                if (active != callActive) {
+                    callActive = active
+                    applySuppression()
+                }
+            }
+        }
+        runCatching { manager.registerTelephonyCallback(mainExecutor, callback) }
+        telephonyCallback = callback
+    }
+
+    @RequiresApi(31)
+    private fun stopCallWatch() {
+        telephonyCallback?.let { callback ->
+            val manager = getSystemService(TELEPHONY_SERVICE) as? TelephonyManager
+            runCatching { manager?.unregisterTelephonyCallback(callback) }
+        }
+        telephonyCallback = null
+        if (callActive) {
+            callActive = false
+            applySuppression()
+        }
+    }
 
     /** Rebuild the overlays after a settings change. Call on the main thread. */
     @RequiresApi(31)
@@ -116,6 +230,7 @@ class CaptureAccessibilityService : AccessibilityService() {
         hideBubble()
         if (prefs.getBoolean(PREF_BUBBLE, false)) showBubble()
         if (prefs.getBoolean(PREF_EDGE_SWIPE, false)) showEdgeStrips()
+        applySuppression()
     }
 
     @RequiresApi(31)
@@ -130,6 +245,8 @@ class CaptureAccessibilityService : AccessibilityService() {
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
         @SuppressLint("InflateParams")
         val view = LayoutInflater.from(this).inflate(R.layout.view_bubble, null)
+        view.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+        view.contentDescription = getString(R.string.bubble_content_description)
         val params = overlayParams(Gravity.TOP or Gravity.START).apply {
             x = 24
             y = resources.displayMetrics.heightPixels / 3
@@ -261,6 +378,10 @@ class CaptureAccessibilityService : AccessibilityService() {
         for (gravity in gravities) {
             val strip = View(this)
             strip.contentDescription = getString(R.string.corner_swipe_hint)
+            strip.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+            strip.isFocusable = true
+            // TalkBack users can activate the strip with a double-tap.
+            strip.setOnClickListener { onBubbleTapped() }
             val params = overlayParams(gravity).apply {
                 this.width = width
                 this.height = height
@@ -309,6 +430,7 @@ class CaptureAccessibilityService : AccessibilityService() {
     /** Remove the bubble first so it cannot appear in the captured frame. */
     @RequiresApi(31)
     private fun onBubbleTapped() {
+        Feedback.capture(this, prefs())
         hideBubble()
         handler.postDelayed({ captureForSelection() }, BUBBLE_CAPTURE_DELAY_MS)
     }
@@ -316,6 +438,7 @@ class CaptureAccessibilityService : AccessibilityService() {
     /** Quick-settings tile path: open the existing full-screen viewer. */
     @RequiresApi(31)
     fun captureScreenAndOpen() {
+        Feedback.capture(this, prefs())
         performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE)
         handler.postDelayed({ doCapture() }, SHADE_DISMISS_DELAY_MS)
     }
@@ -337,7 +460,15 @@ class CaptureAccessibilityService : AccessibilityService() {
                     }
                 }
 
-                override fun onFailure(errorCode: Int) = fallback()
+                override fun onFailure(errorCode: Int) {
+                    if (errorCode == ERROR_TAKE_SCREENSHOT_SECURE_WINDOW) {
+                        showCaptureError(R.string.capture_secure)
+                    } else if (errorCode == ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT) {
+                        showCaptureError(R.string.capture_busy)
+                    } else {
+                        fallback()
+                    }
+                }
             }
         )
     }
@@ -382,9 +513,9 @@ class CaptureAccessibilityService : AccessibilityService() {
 
     private fun showCaptureError(message: Int) {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-        if (Build.VERSION.SDK_INT >= 31 && prefs().getBoolean(PREF_BUBBLE, false)) {
-            showBubble()
-        }
+        // Restore both triggers, not just the bubble: a failed swipe should
+        // leave the corner strips usable as well.
+        if (Build.VERSION.SDK_INT >= 31) refreshOverlays()
     }
 
     private fun fallback() {

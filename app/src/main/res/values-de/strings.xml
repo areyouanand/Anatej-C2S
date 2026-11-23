@@ -27,7 +27,7 @@
     <string name="cancel">Abbrechen</string>
     <string name="bubble_content_description">Text vom Bildschirm auswählen</string>
     <string name="capture_busy">Warte einen Moment vor der nächsten Aufnahme</string>
-    <string name="capture_secure">Dieser Bildschirm darf nicht aufgenommen werden</string>
+    <string name="capture_secure">Dieser Bildschirm blockiert Screenshots. Banking-, Passwort- und geschützte Video-Seiten können von keiner App aufgenommen werden.</string>
     <string name="capture_error">Aufnahme fehlgeschlagen. Bitte erneut versuchen.</string>
 
     <string name="customize_picker">Auswähler anpassen</string>
@@ -65,4 +65,71 @@
     <string name="no_screenshot_found">Kein Screenshot gefunden</string>
     <string name="permission_needed">Fotozugriff wird benötigt, um den letzten Screenshot zu öffnen</string>
     <string name="load_failed">Bild konnte nicht geöffnet werden. %1$s</string>
+
+    <string name="feedback_settings">Rückmeldung</string>
+    <string name="trigger_settings">Auslöser</string>
+    <string name="capture_haptic">Bei Aufnahme vibrieren</string>
+    <string name="capture_sound">Bei Aufnahme Ton abspielen</string>
+
+    <string name="appearance">Darstellung</string>
+    <string name="theme_mode">Design</string>
+    <string name="theme_system">System folgen</string>
+    <string name="theme_light">Hell</string>
+    <string name="theme_dark">Dunkel</string>
+
+    <string name="recognition">Texterkennung</string>
+    <string name="ocr_script">Schriftsystem</string>
+    <string name="script_auto">Automatisch erkennen</string>
+    <string name="script_latin">Lateinisch</string>
+    <string name="script_chinese">Chinesisch</string>
+    <string name="script_japanese">Japanisch</string>
+    <string name="script_korean">Koreanisch</string>
+    <string name="script_devanagari">Devanagari</string>
+    <string name="script_note">Zusätzliche Schriftsysteme sind nur in der Vollversion dieser App enthalten.</string>
+    <string name="scan_barcodes">QR-Codes und Barcodes scannen</string>
+    <string name="mark_uncertain">Unsichere Wörter unterstreichen</string>
+    <string name="selection_magnifier">Lupe bei der Auswahl</string>
+    <string name="barcodes_found">Gefundene Codes</string>
+    <string name="barcode_copy">Code kopieren</string>
+    <string name="barcode_open">Link öffnen</string>
+    <string name="no_barcode_handler">Keine App kann diesen Code öffnen</string>
+
+    <string name="hide_on_keyboard">Auswähler beim Tippen ausblenden</string>
+    <string name="hide_on_calls">Auswähler während Anrufen ausblenden</string>
+    <string name="call_permission_note">Der Telefoniestatus wird nur verwendet, um den Auswähler während Anrufen auszublenden. Ohne Berechtigung funktionieren alle anderen Funktionen weiter.</string>
+    <string name="call_permission_denied">Zugriff auf Telefoniestatus verweigert; der Auswähler bleibt während Anrufen sichtbar</string>
+
+    <string name="settings_backup">Einstellungen sichern</string>
+    <string name="export_settings">Einstellungen exportieren</string>
+    <string name="import_settings">Einstellungen importieren</string>
+    <string name="settings_exported">Einstellungen exportiert</string>
+    <string name="settings_imported">Einstellungen importiert</string>
+    <string name="settings_import_failed">Diese Einstellungsdatei konnte nicht gelesen werden</string>
+
+    <string name="onboarding_1_title">Aufnahme aktivieren</string>
+    <string name="onboarding_1_body">Aktiviere „Anatej C2S Aufnahme“ in den Android-Barrierefreiheitseinstellungen. Die App erstellt nur auf Anfrage einen Screenshot und liest keine Bildschirminhalte.</string>
+    <string name="onboarding_2_title">Auswähler auslösen</string>
+    <string name="onboarding_2_body">Tippe in einer beliebigen App auf den schwebenden Auswähler oder wische von einer unteren Ecke nach oben. Beides lässt sich in den Auswähler-Einstellungen anpassen.</string>
+    <string name="onboarding_3_title">Markieren und kopieren</string>
+    <string name="onboarding_3_body">Markiere den gewünschten Text und tippe auf Kopieren. Die Erkennung läuft vollständig auf deinem Gerät.</string>
+    <string name="onboarding_open_settings">Barrierefreiheitseinstellungen öffnen</string>
+    <string name="onboarding_next">Weiter</string>
+    <string name="onboarding_done">Loslegen</string>
+    <string name="onboarding_skip">Überspringen</string>
+
+    <string name="region_selected">Bereich ausgewählt. Text wird erkannt.</string>
+    <string name="selection_announcement">Ausgewählter Text: %1$s</string>
+    <string name="rotate">Um 90 Grad drehen</string>
+
+    <string name="action_call">Anrufen</string>
+    <string name="action_email">E-Mail</string>
+    <string name="action_open_link">Link öffnen</string>
+    <string name="action_map">Auf Karte finden</string>
+    <string name="no_action_app">Keine App für diese Aktion verfügbar</string>
+
+    <string name="clipboard_history">Zwischenablage-Verlauf</string>
+    <string name="clipboard_history_empty">Noch kein Text kopiert</string>
+    <string name="clipboard_clear">Verlauf löschen</string>
+    <string name="clipboard_cleared">Verlauf gelöscht</string>
+    <string name="clipboard_item">Kopierter Text %1$d</string>
 </resources>

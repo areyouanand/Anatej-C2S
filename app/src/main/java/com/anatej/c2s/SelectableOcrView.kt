@@ -7,8 +7,10 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RectF
 import android.os.Build
+import android.os.SystemClock
 import android.util.AttributeSet
 import android.view.GestureDetector
 import android.view.HapticFeedbackConstants
@@ -38,6 +40,10 @@ class SelectableOcrView @JvmOverloads constructor(
 
     var listener: Listener? = null
 
+    /** Set from preferences by MainActivity. */
+    var magnifierEnabled = true
+    var markUncertain = true
+
     private var bitmap: Bitmap? = null
     private var result: OcrEngine.Result? = null
 
@@ -52,6 +58,10 @@ class SelectableOcrView @JvmOverloads constructor(
 
     private var dragMode = DragMode.NONE
     private var dragAnchorWord = -1
+    private var dragPointX = 0f
+    private var dragPointY = 0f
+    private var lastLineTapTime = 0L
+    private var lastLineTapWord = -1
 
     private enum class DragMode { NONE, SWEEP, HANDLE_START, HANDLE_END }
 
@@ -84,6 +94,16 @@ class SelectableOcrView @JvmOverloads constructor(
     }
     private val backgroundPaint = Paint().apply { color = 0xFF101014.toInt() }
     private val bitmapPaint = Paint(Paint.FILTER_BITMAP_FLAG)
+    private val uncertainPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0xFFFFCC80.toInt()
+        style = Paint.Style.STROKE
+        strokeWidth = dp(1.5f)
+    }
+    private val magnifierBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0xFFFFFFFF.toInt()
+        style = Paint.Style.STROKE
+        strokeWidth = dp(2f)
+    }
 
     private val handleRadius get() = dp(7f)
     private val handleTouchRadius get() = dp(26f)
@@ -110,6 +130,26 @@ class SelectableOcrView @JvmOverloads constructor(
         if (r.isEmpty) return
         selStart = 0
         selEnd = r.words.size - 1
+        notifySelection()
+        invalidate()
+    }
+
+    /** Selects every word on the same line as [index]. */
+    private fun selectLine(index: Int) = selectGroup(index) { a, b -> a.lineId == b.lineId }
+
+    /** Selects every word in the same text block as [index]. */
+    private fun selectParagraph(index: Int) = selectGroup(index) { a, b -> a.blockId == b.blockId }
+
+    private fun selectGroup(index: Int, sameGroup: (OcrEngine.Word, OcrEngine.Word) -> Boolean) {
+        val r = result ?: return
+        val anchorWord = r.words[index]
+        var start = index
+        var end = index
+        while (start > 0 && sameGroup(r.words[start - 1], anchorWord)) start--
+        while (end < r.words.size - 1 && sameGroup(r.words[end + 1], anchorWord)) end++
+        selStart = start
+        selEnd = end
+        performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
         notifySelection()
         invalidate()
     }
@@ -174,6 +214,16 @@ class SelectableOcrView @JvmOverloads constructor(
                 canvas.drawRoundRect(tmp, radius, radius, hintPaint)
                 canvas.drawRoundRect(tmp, radius, radius, hintStroke)
             }
+            if (markUncertain) {
+                r.words.forEach { word ->
+                    if (word.confidence in 0.01f..0.6f) {
+                        tmp.set(word.box)
+                        imageMatrix.mapRect(tmp)
+                        val y = tmp.bottom + dp(1f)
+                        canvas.drawLine(tmp.left, y, tmp.right, y, uncertainPaint)
+                    }
+                }
+            }
             return
         }
 
@@ -207,6 +257,30 @@ class SelectableOcrView @JvmOverloads constructor(
             canvas.drawLine(lr.right, lr.top, lr.right, lr.bottom, handleStemPaint)
             canvas.drawCircle(lr.right, lr.bottom + handleRadius * 0.7f, handleRadius, handlePaint)
         }
+
+        if (magnifierEnabled && dragMode != DragMode.NONE) drawMagnifier(canvas)
+    }
+
+    private fun drawMagnifier(canvas: Canvas) {
+        val bmp = bitmap ?: return
+        val radius = dp(48f)
+        val cx = (dragPointX).coerceIn(radius, (width - radius).coerceAtLeast(radius))
+        val cy = (dragPointY - radius * 1.5f)
+            .coerceIn(radius, (height - radius).coerceAtLeast(radius))
+        val circle = Path().apply { addCircle(cx, cy, radius, Path.Direction.CW) }
+
+        canvas.save()
+        canvas.clipPath(circle)
+        canvas.drawCircle(cx, cy, radius, backgroundPaint)
+        val (bx, by) = toBitmapSpace(dragPointX, dragPointY)
+        val zoom = 2.5f
+        val magMatrix = Matrix().apply {
+            postScale(zoom, zoom)
+            postTranslate(cx - bx * zoom, cy - by * zoom)
+        }
+        canvas.drawBitmap(bmp, magMatrix, bitmapPaint)
+        canvas.restore()
+        canvas.drawCircle(cx, cy, radius, magnifierBorderPaint)
     }
 
     // --------------------------------------------------------------- gestures
@@ -245,6 +319,13 @@ class SelectableOcrView @JvmOverloads constructor(
 
             override fun onSingleTapUp(e: MotionEvent): Boolean {
                 val hit = wordAt(e.x, e.y, forgiving = true)
+                val now = SystemClock.uptimeMillis()
+                if (hit != -1 && hit == lastLineTapWord && now - lastLineTapTime < 700L) {
+                    // Third tap on the same word selects its whole paragraph.
+                    selectParagraph(hit)
+                    lastLineTapTime = 0L
+                    return true
+                }
                 if (hit != -1) {
                     selStart = hit
                     selEnd = hit
@@ -258,6 +339,13 @@ class SelectableOcrView @JvmOverloads constructor(
             }
 
             override fun onDoubleTap(e: MotionEvent): Boolean {
+                val hit = wordAt(e.x, e.y, forgiving = true)
+                if (hit != -1) {
+                    selectLine(hit)
+                    lastLineTapTime = SystemClock.uptimeMillis()
+                    lastLineTapWord = hit
+                    return true
+                }
                 val target = if (currentScale > fitScale * 1.4f) fitScale else fitScale * 2.5f
                 val factor = target / currentScale
                 currentScale = target
@@ -285,6 +373,9 @@ class SelectableOcrView @JvmOverloads constructor(
 
     init {
         gestureDetector.setIsLongpressEnabled(true)
+        isFocusable = true
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
+        contentDescription = context.getString(R.string.recognized_text)
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -324,6 +415,8 @@ class SelectableOcrView @JvmOverloads constructor(
     }
 
     private fun onSelectionDrag(x: Float, y: Float) {
+        dragPointX = x
+        dragPointY = y
         val nearest = nearestWord(x, y)
         if (nearest == -1) return
         val oldStart = selStart
@@ -436,12 +529,16 @@ class SelectableOcrView @JvmOverloads constructor(
     private fun notifySelection() {
         val r = result
         if (r == null || selStart == -1) {
+            contentDescription = context.getString(R.string.recognized_text)
             listener?.onSelectionChanged(null, null)
             return
         }
         val anchor = RectF(r.words[selStart].box)
         for (i in selStart..selEnd) anchor.union(r.words[i].box)
         imageMatrix.mapRect(anchor)
-        listener?.onSelectionChanged(r.textOf(selStart, selEnd), anchor)
+        val text = r.textOf(selStart, selEnd)
+        contentDescription = context.getString(R.string.selection_announcement, text)
+        announceForAccessibility(contentDescription)
+        listener?.onSelectionChanged(text, anchor)
     }
 }

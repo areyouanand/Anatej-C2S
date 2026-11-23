@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.RectF
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.TextRecognizer
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -11,7 +12,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
  * Thin wrapper around ML Kit's bundled on-device text recognizer.
- * The model ships inside the APK, so recognition works fully offline
+ * The models ship inside the APK, so recognition works fully offline
  * and without Google Play services (GrapheneOS etc.).
  */
 object OcrEngine {
@@ -22,6 +23,7 @@ object OcrEngine {
         val box: RectF,
         val lineId: Int,
         val blockId: Int,
+        val confidence: Float,
     )
 
     data class Result(
@@ -53,19 +55,46 @@ object OcrEngine {
         val fullText: String get() = if (isEmpty) "" else textOf(0, words.size - 1)
     }
 
-    private val recognizer by lazy {
+    private val latinRecognizer by lazy {
         TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+    }
+    private val extraRecognizers = HashMap<String, TextRecognizer>()
+
+    /** Scripts compiled into this build variant. */
+    val availableScripts: Array<String> get() = OcrScripts.available
+
+    private fun recognizerFor(script: String): TextRecognizer {
+        if (script == CaptureAccessibilityService.SCRIPT_LATIN) return latinRecognizer
+        return extraRecognizers.getOrPut(script) {
+            OcrScripts.recognizerFor(script) ?: latinRecognizer
+        }
     }
 
     fun warmUp() {
         // Trigger lazy init + model load off the critical path.
         val bmp = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888)
-        recognizer.process(InputImage.fromBitmap(bmp, 0))
+        latinRecognizer.process(InputImage.fromBitmap(bmp, 0))
             .addOnCompleteListener { bmp.recycle() }
     }
 
-    suspend fun recognize(bitmap: Bitmap): Result =
-        suspendCancellableCoroutine { cont ->
+    suspend fun recognize(bitmap: Bitmap, script: String = CaptureAccessibilityService.SCRIPT_LATIN): Result {
+        if (script == CaptureAccessibilityService.SCRIPT_AUTO && OcrScripts.available.size > 2) {
+            var best = recognizeWith(bitmap, CaptureAccessibilityService.SCRIPT_LATIN)
+            for (candidate in OcrScripts.available) {
+                if (candidate == CaptureAccessibilityService.SCRIPT_LATIN ||
+                    candidate == CaptureAccessibilityService.SCRIPT_AUTO
+                ) continue
+                val attempt = recognizeWith(bitmap, candidate)
+                if (attempt.words.size > best.words.size) best = attempt
+            }
+            return best
+        }
+        return recognizeWith(bitmap, script)
+    }
+
+    private suspend fun recognizeWith(bitmap: Bitmap, script: String): Result {
+        val recognizer = recognizerFor(script)
+        return suspendCancellableCoroutine { cont ->
             recognizer.process(InputImage.fromBitmap(bitmap, 0))
                 .addOnSuccessListener { text ->
                     val words = ArrayList<Word>()
@@ -77,7 +106,12 @@ object OcrEngine {
                             for (element in line.elements) {
                                 val box = element.boundingBox ?: continue
                                 if (element.text.isBlank()) continue
-                                words.add(Word(element.text, RectF(box), lineId, blockId))
+                                words.add(
+                                    Word(
+                                        element.text, RectF(box), lineId, blockId,
+                                        element.confidence
+                                    )
+                                )
                             }
                             lineId++
                         }
@@ -86,4 +120,5 @@ object OcrEngine {
                 }
                 .addOnFailureListener { e -> cont.resumeWithException(e) }
         }
+    }
 }

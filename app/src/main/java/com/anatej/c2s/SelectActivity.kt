@@ -1,6 +1,8 @@
 package com.anatej.c2s
 
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.addCallback
@@ -14,6 +16,7 @@ import com.anatej.c2s.databinding.ActivitySelectBinding
 class SelectActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySelectBinding
+    private var currentBitmap: Bitmap? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,13 +37,29 @@ class SelectActivity : AppCompatActivity() {
             insets
         }
 
+        currentBitmap = bitmap
         binding.regionView.setBitmap(bitmap)
         binding.regionView.listener = RegionSelectView.Listener { cropped -> openReader(cropped) }
 
-        binding.btnWholeScreen.setOnClickListener { openReader(bitmap) }
+        binding.btnRotate.setOnClickListener { rotateBitmap() }
+        binding.btnWholeScreen.setOnClickListener {
+            currentBitmap?.let { openReader(it) }
+        }
         binding.btnCancel.setOnClickListener { cancel() }
 
         onBackPressedDispatcher.addCallback(this) { cancel() }
+    }
+
+    private fun rotateBitmap() {
+        val source = currentBitmap ?: return
+        val rotated = runCatching {
+            Bitmap.createBitmap(
+                source, 0, 0, source.width, source.height,
+                Matrix().apply { postRotate(90f) }, false
+            )
+        }.getOrNull() ?: return
+        currentBitmap = rotated
+        binding.regionView.setBitmap(rotated)
     }
 
     private fun openReader(bitmap: android.graphics.Bitmap) {

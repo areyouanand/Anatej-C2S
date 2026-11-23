@@ -15,6 +15,11 @@ internet permission and does not need Google Play services.
   and web search.
 - Quick-settings tile and image share/open-with for screenshots and photos.
 - About screen with app version and maintainer links.
+- QR code and barcode reading, smart actions for links, phone numbers, emails
+  and addresses, and a local clipboard history.
+- Light, dark and system themes, haptic or sound capture feedback, and a
+  one-time introduction.
+- Settings export and import; pinch zoom and rotation for awkward text.
 
 ## Requirements
 
@@ -40,18 +45,29 @@ distance from the side, and distance from the bottom are all adjustable.
 
 ## Privacy
 
-- No `INTERNET` or `ACCESS_NETWORK_STATE` permission.
+- No `INTERNET` or `ACCESS_NETWORK_STATE` permission. Recognition and barcode
+  scanning are entirely on-device.
 - Captured frames stay in memory and are not written to disk by the app.
 - No analytics, ads, accounts, or background screen monitoring.
+- `VIBRATE` is used only for the optional capture confirmation.
+- `READ_PHONE_STATE` is optional and off by default. It is requested only if
+  you enable "Hide picker during calls", and is used for nothing else.
+- Exported settings exclude clipboard history so copied text never travels
+  with them.
 - Windows marked `FLAG_SECURE` cannot be captured, including banking and
   password screens.
 
 ## Languages
 
-The bundled Latin recognizer covers English, German, French, Spanish, Italian,
-Portuguese, Dutch, Polish, Czech, Danish, Swedish, Norwegian, Finnish,
-Hungarian, Romanian, Turkish, and other Latin-script languages. Chinese,
-Japanese, Korean, and Devanagari need separate model packs and are not bundled.
+The default APK bundles the Latin recognizer, covering English, German, French,
+Spanish, Italian, Portuguese, Dutch, Polish, Czech, Danish, Swedish, Norwegian,
+Finnish, Hungarian, Romanian, Turkish and other Latin-script languages.
+
+A separate `full` APK adds Chinese, Japanese, Korean and Devanagari models. ML
+Kit's bundled models cannot be downloaded at runtime, so these scripts require
+the larger variant rather than an in-app download. Pick the active script under
+Recognition in Settings; Auto detect tries every bundled model and keeps the
+best result.
 
 ## Building
 
@@ -59,13 +75,18 @@ Japanese, Korean, and Devanagari need separate model packs and are not bundled.
 ./gradlew assembleDebug
 ```
 
-Output: `app/build/outputs/apk/debug/app-debug.apk`.
+Outputs: `app/build/outputs/apk/latinDebug/app-latin-debug.apk` and
+`app/build/outputs/apk/fullDebug/app-full-debug.apk`.
 
-For a release build:
+For signed release builds:
 
 ```sh
 ./gradlew assembleRelease
 ```
+
+Outputs: `app/build/outputs/apk/latin/release/app-latin-release.apk` (about 29 MB)
+and `app/build/outputs/apk/full/release/app-full-release.apk` (about 32 MB).
+Only ARM libraries are packaged; the APKs will not run on x86 emulators.
 
 The application ID is `com.anatej.c2s`. Release builds are signed with the
 keystore described below. The signing certificate SHA-256 fingerprint is:
