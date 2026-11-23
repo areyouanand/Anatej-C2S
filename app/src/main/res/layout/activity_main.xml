@@ -85,6 +85,14 @@
             android:maxWidth="400dp"
             android:text="@string/customize_picker" />
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnAbout"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxWidth="400dp"
+            android:text="@string/about" />
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -103,7 +111,7 @@
         android:visibility="gone"
         tools:visibility="visible">
 
-        <dev.noah.textgrab.SelectableOcrView
+        <com.anatej.c2s.SelectableOcrView
             android:id="@+id/ocrView"
             android:layout_width="match_parent"
             android:layout_height="match_parent" />

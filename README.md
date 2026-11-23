@@ -14,6 +14,7 @@ internet permission and does not need Google Play services.
 - Word-level text selection after capture, plus select-all, copy all, share,
   and web search.
 - Quick-settings tile and image share/open-with for screenshots and photos.
+- About screen with app version and maintainer links.
 
 ## Requirements
 
@@ -66,7 +67,20 @@ For a release build:
 ./gradlew assembleRelease
 ```
 
-Without a keystore the release APK is unsigned. To sign it, create
+The application ID is `com.anatej.c2s`. Release builds are signed with the
+keystore described below. The signing certificate SHA-256 fingerprint is:
+
+```
+a5a3ab4b402cb313059329cf2a4b4826d98967bc0df550079c8bbd2ed9f51b3d
+```
+
+Check a downloaded APK with:
+
+```sh
+apksigner verify --print-certs app-release.apk
+```
+
+To sign release builds yourself, create
 `keystore/keystore.properties` (gitignored):
 
 ```properties

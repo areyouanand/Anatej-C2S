@@ -1,4 +1,4 @@
-package dev.noah.textgrab
+package com.anatej.c2s
 
 import android.content.Intent
 import android.os.Build
@@ -8,7 +8,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
-import dev.noah.textgrab.databinding.ActivitySelectBinding
+import com.anatej.c2s.databinding.ActivitySelectBinding
 
 /** Lets the user circle the part of a captured screen to read. */
 class SelectActivity : AppCompatActivity() {

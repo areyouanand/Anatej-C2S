@@ -1,4 +1,4 @@
-package dev.noah.textgrab
+package com.anatej.c2s
 
 import android.accessibilityservice.AccessibilityService
 import android.annotation.SuppressLint
@@ -54,7 +54,7 @@ class CaptureAccessibilityService : AccessibilityService() {
         var instance: CaptureAccessibilityService? = null
             private set
 
-        const val PREFS = "textgrab_prefs"
+        const val PREFS = "anatej_c2s_prefs"
         const val PREF_BUBBLE = "floating_picker_enabled"
         const val PREF_EDGE_SWIPE = "corner_swipe_enabled"
         const val PREF_EDGE_CORNER = "corner_swipe_side"

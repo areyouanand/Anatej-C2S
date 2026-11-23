@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1
+
+- Changed the application ID to `com.anatej.c2s`.
+- Release APKs are now signed with a project keystore.
+- Added an About screen with version and GitHub links.
+
 ## 1.0.0
 
 - Renamed the app to Anatej C2S.

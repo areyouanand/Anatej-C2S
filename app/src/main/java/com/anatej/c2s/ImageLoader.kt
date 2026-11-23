@@ -1,4 +1,4 @@
-package dev.noah.textgrab
+package com.anatej.c2s
 
 import android.content.Context
 import android.graphics.Bitmap

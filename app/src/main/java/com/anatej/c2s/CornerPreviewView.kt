@@ -1,4 +1,4 @@
-package dev.noah.textgrab
+package com.anatej.c2s
 
 import android.content.Context
 import android.graphics.Canvas
@@ -6,9 +6,9 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
-import dev.noah.textgrab.CaptureAccessibilityService.Companion.CORNER_BOTH
-import dev.noah.textgrab.CaptureAccessibilityService.Companion.CORNER_LEFT
-import dev.noah.textgrab.CaptureAccessibilityService.Companion.CORNER_RIGHT
+import com.anatej.c2s.CaptureAccessibilityService.Companion.CORNER_BOTH
+import com.anatej.c2s.CaptureAccessibilityService.Companion.CORNER_LEFT
+import com.anatej.c2s.CaptureAccessibilityService.Companion.CORNER_RIGHT
 import kotlin.math.min
 
 /**

@@ -1,4 +1,4 @@
-package dev.noah.textgrab
+package com.anatej.c2s
 
 import android.Manifest
 import android.content.ClipData
@@ -26,7 +26,7 @@ import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.snackbar.Snackbar
-import dev.noah.textgrab.databinding.ActivityMainBinding
+import com.anatej.c2s.databinding.ActivityMainBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -36,8 +36,8 @@ import kotlin.math.min
 class MainActivity : AppCompatActivity(), SelectableOcrView.Listener {
 
     companion object {
-        const val EXTRA_LATEST_SCREENSHOT = "dev.noah.textgrab.LATEST_SCREENSHOT"
-        const val EXTRA_CAPTURED_SCREEN = "dev.noah.textgrab.CAPTURED_SCREEN"
+        const val EXTRA_LATEST_SCREENSHOT = "com.anatej.c2s.LATEST_SCREENSHOT"
+        const val EXTRA_CAPTURED_SCREEN = "com.anatej.c2s.CAPTURED_SCREEN"
     }
 
     private lateinit var binding: ActivityMainBinding
@@ -90,6 +90,9 @@ class MainActivity : AppCompatActivity(), SelectableOcrView.Listener {
         binding.btnBubble.setOnClickListener { toggleFloatingPicker() }
         binding.btnCustomize.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
+        }
+        binding.btnAbout.setOnClickListener {
+            startActivity(Intent(this, AboutActivity::class.java))
         }
 
         binding.btnBack.setOnClickListener { onBackFromViewer() }

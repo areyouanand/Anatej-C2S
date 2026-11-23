@@ -35,6 +35,13 @@
     <string name="capture_error">Screen capture failed. Try again.</string>
 
     <string name="customize_picker">Customize picker</string>
+    <string name="about">About</string>
+    <string name="about_version">Version %1$s</string>
+    <string name="about_github">GitHub</string>
+    <string name="about_github_handle" translatable="false">@areyouanand</string>
+    <string name="repo_url" translatable="false">https://github.com/areyouanand/Anatej-C2S</string>
+    <string name="about_source">Source code</string>
+    <string name="about_github_description">Open GitHub profile</string>
     <string name="picker_settings">Picker settings</string>
     <string name="bubble_size">Button size</string>
     <string name="bubble_opacity">Button opacity</string>

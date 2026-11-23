@@ -1,25 +1,25 @@
-package dev.noah.textgrab
+package com.anatej.c2s
 
 import android.content.Context
 import android.os.Build
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import dev.noah.textgrab.CaptureAccessibilityService.Companion.BUBBLE_COLORS
-import dev.noah.textgrab.CaptureAccessibilityService.Companion.CORNER_BOTH
-import dev.noah.textgrab.CaptureAccessibilityService.Companion.CORNER_LEFT
-import dev.noah.textgrab.CaptureAccessibilityService.Companion.CORNER_RIGHT
-import dev.noah.textgrab.CaptureAccessibilityService.Companion.PREF_ALPHA
-import dev.noah.textgrab.CaptureAccessibilityService.Companion.PREF_COLOR
-import dev.noah.textgrab.CaptureAccessibilityService.Companion.PREF_EDGE_CORNER
-import dev.noah.textgrab.CaptureAccessibilityService.Companion.PREF_EDGE_HEIGHT_DP
-import dev.noah.textgrab.CaptureAccessibilityService.Companion.PREF_EDGE_INSET_DP
-import dev.noah.textgrab.CaptureAccessibilityService.Companion.PREF_EDGE_LIFT_DP
-import dev.noah.textgrab.CaptureAccessibilityService.Companion.PREF_EDGE_SWIPE
-import dev.noah.textgrab.CaptureAccessibilityService.Companion.PREF_EDGE_WIDTH_DP
-import dev.noah.textgrab.CaptureAccessibilityService.Companion.PREF_SNAP
-import dev.noah.textgrab.CaptureAccessibilityService.Companion.PREF_SIZE_DP
-import dev.noah.textgrab.CaptureAccessibilityService.Companion.PREFS
-import dev.noah.textgrab.databinding.ActivitySettingsBinding
+import com.anatej.c2s.CaptureAccessibilityService.Companion.BUBBLE_COLORS
+import com.anatej.c2s.CaptureAccessibilityService.Companion.CORNER_BOTH
+import com.anatej.c2s.CaptureAccessibilityService.Companion.CORNER_LEFT
+import com.anatej.c2s.CaptureAccessibilityService.Companion.CORNER_RIGHT
+import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_ALPHA
+import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_COLOR
+import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_EDGE_CORNER
+import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_EDGE_HEIGHT_DP
+import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_EDGE_INSET_DP
+import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_EDGE_LIFT_DP
+import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_EDGE_SWIPE
+import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_EDGE_WIDTH_DP
+import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_SNAP
+import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_SIZE_DP
+import com.anatej.c2s.CaptureAccessibilityService.Companion.PREFS
+import com.anatej.c2s.databinding.ActivitySettingsBinding
 
 /** Controls the picker overlay: size, colour, opacity, snapping and corner swipe. */
 class SettingsActivity : AppCompatActivity() {

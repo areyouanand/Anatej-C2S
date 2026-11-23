@@ -159,7 +159,7 @@
             android:layout_marginTop="12dp"
             android:text="@string/corner_swipe" />
 
-        <dev.noah.textgrab.CornerPreviewView
+        <com.anatej.c2s.CornerPreviewView
             android:id="@+id/cornerPreview"
             android:layout_width="match_parent"
             android:layout_height="220dp"

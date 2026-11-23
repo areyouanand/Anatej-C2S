@@ -5,15 +5,15 @@ plugins {
 }
 
 android {
-    namespace = "dev.noah.textgrab"
+    namespace = "com.anatej.c2s"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "dev.noah.textgrab"
+        applicationId = "com.anatej.c2s"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.0.0"
+        versionCode = 4
+        versionName = "1.0.1"
     }
 
     // Signing credentials live in keystore/keystore.properties (not in git).

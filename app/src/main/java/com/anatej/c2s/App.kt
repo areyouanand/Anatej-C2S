@@ -1,4 +1,4 @@
-package dev.noah.textgrab
+package com.anatej.c2s
 
 import android.app.Application
 import com.google.android.material.color.DynamicColors
