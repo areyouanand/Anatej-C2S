@@ -8,8 +8,10 @@ import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.Rect
 import android.graphics.RectF
 import android.os.Build
+import android.os.Bundle
 import android.os.SystemClock
 import android.util.AttributeSet
 import android.view.GestureDetector
@@ -17,15 +19,15 @@ import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
+import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
+import android.view.accessibility.AccessibilityNodeProvider
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
 /**
- * Renders an image with its recognized words and provides iOS-Live-Text-style
- * interaction: tap a word to select it, long-press and drag to sweep,
- * drag the round handles to refine, pinch to zoom, double-tap to toggle zoom.
- *
+ * Image viewer with explicit Idle / Selected / Adjusting selection states.
  * All word boxes are in bitmap pixel space; [imageMatrix] maps them to view space.
  */
 class SelectableOcrView @JvmOverloads constructor(
@@ -36,13 +38,16 @@ class SelectableOcrView @JvmOverloads constructor(
     interface Listener {
         /** [text] is null when the selection was cleared. [anchor] is in view coordinates. */
         fun onSelectionChanged(text: String?, anchor: RectF?)
+
+        /** True only while a handle or sweep drag is actively adjusting the range. */
+        fun onSelectionAdjustingChanged(adjusting: Boolean)
     }
 
     var listener: Listener? = null
-
-    /** Set from preferences by MainActivity. */
     var magnifierEnabled = true
     var markUncertain = true
+    var topSafePx = 0
+    var bottomSafePx = 0
 
     private var bitmap: Bitmap? = null
     private var result: OcrEngine.Result? = null
@@ -52,67 +57,73 @@ class SelectableOcrView @JvmOverloads constructor(
     private var fitScale = 1f
     private var currentScale = 1f
 
-    // Selection = inclusive word index range, -1 when empty.
-    private var selStart = -1
-    private var selEnd = -1
+    private enum class DragMode { SWEEP, HANDLE_START, HANDLE_END }
 
-    private var dragMode = DragMode.NONE
-    private var dragAnchorWord = -1
-    private var dragPointX = 0f
-    private var dragPointY = 0f
+    private sealed interface SelectionState {
+        data object Idle : SelectionState
+        data class Selected(val start: Int, val end: Int) : SelectionState
+        data class Adjusting(
+            val start: Int,
+            val end: Int,
+            val mode: DragMode,
+            val anchorWord: Int,
+            val x: Float,
+            val y: Float,
+        ) : SelectionState
+    }
+
+    private var state: SelectionState = SelectionState.Idle
     private var lastLineTapTime = 0L
     private var lastLineTapWord = -1
-
-    private enum class DragMode { NONE, SWEEP, HANDLE_START, HANDLE_END }
 
     private val density = resources.displayMetrics.density
     private fun dp(v: Float) = v * density
 
     private val hintPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.WHITE
-        alpha = 40
-        style = Paint.Style.FILL
+        color = Color.WHITE; alpha = 40; style = Paint.Style.FILL
     }
     private val hintStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.WHITE
-        alpha = 90
-        style = Paint.Style.STROKE
-        strokeWidth = dp(1.2f)
+        color = Color.WHITE; alpha = 90; style = Paint.Style.STROKE; strokeWidth = dp(1.2f)
     }
     private val selectionPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0x663B82F6
-        style = Paint.Style.FILL
+        color = 0x663B82F6; style = Paint.Style.FILL
     }
     private val handlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0xFF3B82F6.toInt()
-        style = Paint.Style.FILL
+        color = 0xFF3B82F6.toInt(); style = Paint.Style.FILL
     }
     private val handleStemPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0xFF3B82F6.toInt()
-        style = Paint.Style.STROKE
-        strokeWidth = dp(2f)
+        color = 0xFF3B82F6.toInt(); style = Paint.Style.STROKE; strokeWidth = dp(2f)
     }
     private val backgroundPaint = Paint().apply { color = 0xFF101014.toInt() }
     private val bitmapPaint = Paint(Paint.FILTER_BITMAP_FLAG)
     private val uncertainPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0xFFFFCC80.toInt()
-        style = Paint.Style.STROKE
-        strokeWidth = dp(1.5f)
+        color = 0xFFFFCC80.toInt(); style = Paint.Style.STROKE; strokeWidth = dp(1.5f)
     }
     private val magnifierBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0xFFFFFFFF.toInt()
-        style = Paint.Style.STROKE
-        strokeWidth = dp(2f)
+        color = 0xFFFFFFFF.toInt(); style = Paint.Style.STROKE; strokeWidth = dp(2f)
     }
 
     private val handleRadius get() = dp(7f)
     private val handleTouchRadius get() = dp(26f)
+    private val scratchRect = RectF()
+    private val lineRect = RectF()
+    private val firstRect = RectF()
+    private val lastRect = RectF()
+    private val magnifierPath = Path()
+    private val magnifierMatrix = Matrix()
+    private val mappedPoint = FloatArray(2)
+
+    private val range: Pair<Int, Int>?
+        get() = when (val s = state) {
+            is SelectionState.Selected -> s.start to s.end
+            is SelectionState.Adjusting -> s.start to s.end
+            SelectionState.Idle -> null
+        }
 
     fun setContent(bmp: Bitmap, ocr: OcrEngine.Result) {
         bitmap = bmp
         result = ocr
-        selStart = -1
-        selEnd = -1
+        resetSelection(notify = true)
         if (width > 0 && height > 0) resetFit()
         invalidate()
     }
@@ -120,24 +131,28 @@ class SelectableOcrView @JvmOverloads constructor(
     fun clear() {
         bitmap = null
         result = null
-        selStart = -1
-        selEnd = -1
+        resetSelection(notify = true)
         invalidate()
+    }
+
+    private fun resetSelection(notify: Boolean) {
+        val wasAdjusting = state is SelectionState.Adjusting
+        state = SelectionState.Idle
+        lastLineTapTime = 0L
+        lastLineTapWord = -1
+        if (wasAdjusting) listener?.onSelectionAdjustingChanged(false)
+        if (notify) notifySelection()
     }
 
     fun selectAll() {
         val r = result ?: return
         if (r.isEmpty) return
-        selStart = 0
-        selEnd = r.words.size - 1
-        notifySelection()
+        state = SelectionState.Selected(0, r.words.size - 1)
+        notifySelection(announce = true)
         invalidate()
     }
 
-    /** Selects every word on the same line as [index]. */
     private fun selectLine(index: Int) = selectGroup(index) { a, b -> a.lineId == b.lineId }
-
-    /** Selects every word in the same text block as [index]. */
     private fun selectParagraph(index: Int) = selectGroup(index) { a, b -> a.blockId == b.blockId }
 
     private fun selectGroup(index: Int, sameGroup: (OcrEngine.Word, OcrEngine.Word) -> Boolean) {
@@ -147,34 +162,32 @@ class SelectableOcrView @JvmOverloads constructor(
         var end = index
         while (start > 0 && sameGroup(r.words[start - 1], anchorWord)) start--
         while (end < r.words.size - 1 && sameGroup(r.words[end + 1], anchorWord)) end++
-        selStart = start
-        selEnd = end
+        state = SelectionState.Selected(start, end)
         performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
-        notifySelection()
+        notifySelection(announce = true)
         invalidate()
     }
 
     fun clearSelection() {
-        if (selStart == -1) return
-        selStart = -1
-        selEnd = -1
-        notifySelection()
+        if (state is SelectionState.Idle) return
+        resetSelection(notify = true)
         invalidate()
     }
 
-    fun hasSelection() = selStart != -1
+    fun hasSelection() = state !is SelectionState.Idle
+    val isAdjusting: Boolean get() = state is SelectionState.Adjusting
 
     val selectedText: String?
         get() {
             val r = result ?: return null
-            if (selStart == -1) return null
-            return r.textOf(selStart, selEnd)
+            val (start, end) = range ?: return null
+            return r.textOf(start, end)
         }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         if (bitmap != null) resetFit()
-        if (selStart != -1) notifySelection()
+        notifySelection()
     }
 
     private fun resetFit() {
@@ -190,9 +203,7 @@ class SelectableOcrView @JvmOverloads constructor(
         syncInverse()
     }
 
-    private fun syncInverse() {
-        imageMatrix.invert(inverseMatrix)
-    }
+    private fun syncInverse() = imageMatrix.invert(inverseMatrix)
 
     // ---------------------------------------------------------------- drawing
 
@@ -200,85 +211,97 @@ class SelectableOcrView @JvmOverloads constructor(
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), backgroundPaint)
         val bmp = bitmap ?: return
         canvas.drawBitmap(bmp, imageMatrix, bitmapPaint)
-
         val r = result ?: return
-        val tmp = RectF()
 
-        // Subtle hint that text was found and is selectable.
-        if (selStart == -1) {
+        val selectedRange = range
+        if (selectedRange == null) {
             for (box in r.lineBoxes) {
-                tmp.set(box)
-                imageMatrix.mapRect(tmp)
-                tmp.inset(-dp(2f), -dp(2f))
-                val radius = tmp.height() * 0.25f
-                canvas.drawRoundRect(tmp, radius, radius, hintPaint)
-                canvas.drawRoundRect(tmp, radius, radius, hintStroke)
+                scratchRect.set(box)
+                imageMatrix.mapRect(scratchRect)
+                scratchRect.inset(-dp(2f), -dp(2f))
+                val radius = scratchRect.height() * 0.25f
+                canvas.drawRoundRect(scratchRect, radius, radius, hintPaint)
+                canvas.drawRoundRect(scratchRect, radius, radius, hintStroke)
             }
             if (markUncertain) {
                 r.words.forEach { word ->
                     if (word.confidence in 0.01f..0.6f) {
-                        tmp.set(word.box)
-                        imageMatrix.mapRect(tmp)
-                        val y = tmp.bottom + dp(1f)
-                        canvas.drawLine(tmp.left, y, tmp.right, y, uncertainPaint)
+                        scratchRect.set(word.box)
+                        imageMatrix.mapRect(scratchRect)
+                        val y = scratchRect.bottom + dp(1f)
+                        canvas.drawLine(scratchRect.left, y, scratchRect.right, y, uncertainPaint)
                     }
                 }
             }
             return
         }
 
-        // Selection: one rounded rect per line, spanning selected words.
-        var i = selStart
-        var firstRect: RectF? = null
-        var lastRect: RectF? = null
-        while (i <= selEnd) {
+        populateHandleRects(selectedRange.first, selectedRange.second)
+        var i = selectedRange.first
+        while (i <= selectedRange.second) {
             val lineId = r.words[i].lineId
-            val union = RectF(r.words[i].box)
+            lineRect.set(r.words[i].box)
             var j = i
-            while (j + 1 <= selEnd && r.words[j + 1].lineId == lineId) {
+            while (j + 1 <= selectedRange.second && r.words[j + 1].lineId == lineId) {
                 j++
-                union.union(r.words[j].box)
+                lineRect.union(r.words[j].box)
             }
-            imageMatrix.mapRect(union)
-            union.inset(-dp(3f), -dp(3f))
-            val radius = dp(4f)
-            canvas.drawRoundRect(union, radius, radius, selectionPaint)
-            if (firstRect == null) firstRect = RectF(union)
-            lastRect = RectF(union)
+            imageMatrix.mapRect(lineRect)
+            lineRect.inset(-dp(3f), -dp(3f))
+            canvas.drawRoundRect(lineRect, dp(4f), dp(4f), selectionPaint)
             i = j + 1
         }
 
-        // iOS-style selection handles: stem + ball.
-        firstRect?.let { fr ->
-            canvas.drawLine(fr.left, fr.top, fr.left, fr.bottom, handleStemPaint)
-            canvas.drawCircle(fr.left, fr.top - handleRadius * 0.7f, handleRadius, handlePaint)
-        }
-        lastRect?.let { lr ->
-            canvas.drawLine(lr.right, lr.top, lr.right, lr.bottom, handleStemPaint)
-            canvas.drawCircle(lr.right, lr.bottom + handleRadius * 0.7f, handleRadius, handlePaint)
-        }
+        canvas.drawLine(firstRect.left, firstRect.top, firstRect.left, firstRect.bottom, handleStemPaint)
+        canvas.drawCircle(firstRect.left, firstRect.top - handleRadius * 0.7f, handleRadius, handlePaint)
+        canvas.drawLine(lastRect.right, lastRect.top, lastRect.right, lastRect.bottom, handleStemPaint)
+        canvas.drawCircle(lastRect.right, lastRect.bottom + handleRadius * 0.7f, handleRadius, handlePaint)
 
-        if (magnifierEnabled && dragMode != DragMode.NONE) drawMagnifier(canvas)
+        val adjusting = state as? SelectionState.Adjusting
+        if (magnifierEnabled && adjusting != null) drawMagnifier(canvas, bmp, adjusting)
     }
 
-    private fun drawMagnifier(canvas: Canvas) {
-        val bmp = bitmap ?: return
+    private fun populateHandleRects(start: Int, end: Int) {
+        val r = result ?: return
+        firstRect.set(r.words[start].box)
+        lastRect.set(r.words[end].box)
+        var i = start
+        while (i <= end) {
+            val lineId = r.words[i].lineId
+            lineRect.set(r.words[i].box)
+            var j = i
+            while (j + 1 <= end && r.words[j + 1].lineId == lineId) {
+                j++
+                lineRect.union(r.words[j].box)
+            }
+            if (i == start) firstRect.set(lineRect)
+            lastRect.set(lineRect)
+            i = j + 1
+        }
+        imageMatrix.mapRect(firstRect)
+        imageMatrix.mapRect(lastRect)
+        firstRect.inset(-dp(3f), -dp(3f))
+        lastRect.inset(-dp(3f), -dp(3f))
+    }
+
+    private fun drawMagnifier(canvas: Canvas, bmp: Bitmap, adjusting: SelectionState.Adjusting) {
         val radius = dp(48f)
-        val cx = (dragPointX).coerceIn(radius, (width - radius).coerceAtLeast(radius))
-        val cy = (dragPointY - radius * 1.5f)
-            .coerceIn(radius, (height - radius).coerceAtLeast(radius))
-        val circle = Path().apply { addCircle(cx, cy, radius, Path.Direction.CW) }
+        val minY = topSafePx + radius
+        val maxY = (height - bottomSafePx - radius).coerceAtLeast(minY)
+        val cx = adjusting.x.coerceIn(radius, (width - radius).coerceAtLeast(radius))
+        val cy = (adjusting.y - radius * 1.5f).coerceIn(minY, maxY)
+        magnifierPath.reset()
+        magnifierPath.addCircle(cx, cy, radius, Path.Direction.CW)
 
         canvas.save()
-        canvas.clipPath(circle)
+        canvas.clipPath(magnifierPath)
         canvas.drawCircle(cx, cy, radius, backgroundPaint)
-        val (bx, by) = toBitmapSpace(dragPointX, dragPointY)
-        val zoom = 2.5f
-        val magMatrix = Matrix().apply {
-            postScale(zoom, zoom)
-            postTranslate(cx - bx * zoom, cy - by * zoom)
-        }
-        canvas.drawBitmap(bmp, magMatrix, bitmapPaint)
+        toBitmapSpace(adjusting.x, adjusting.y, mappedPoint)
+        val zoom = max(currentScale * 1.8f, fitScale * 2.5f)
+        magnifierMatrix.reset()
+        magnifierMatrix.postScale(zoom, zoom)
+        magnifierMatrix.postTranslate(cx - mappedPoint[0] * zoom, cy - mappedPoint[1] * zoom)
+        canvas.drawBitmap(bmp, magnifierMatrix, bitmapPaint)
         canvas.restore()
         canvas.drawCircle(cx, cy, radius, magnifierBorderPaint)
     }
@@ -288,15 +311,15 @@ class SelectableOcrView @JvmOverloads constructor(
     private val scaleDetector = ScaleGestureDetector(context,
         object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
             override fun onScale(detector: ScaleGestureDetector): Boolean {
-                if (dragMode != DragMode.NONE) return true
-                val target = (currentScale * detector.scaleFactor)
-                    .coerceIn(fitScale * 0.8f, fitScale * 12f)
+                if (state is SelectionState.Adjusting) return true
+                val target = (currentScale * detector.scaleFactor).coerceIn(fitScale * 0.8f, fitScale * 12f)
                 val factor = target / currentScale
                 currentScale = target
                 imageMatrix.postScale(factor, factor, detector.focusX, detector.focusY)
                 clampTranslation()
                 syncInverse()
                 invalidate()
+                notifySelection()
                 return true
             }
         })
@@ -305,15 +328,13 @@ class SelectableOcrView @JvmOverloads constructor(
         object : GestureDetector.SimpleOnGestureListener() {
             override fun onDown(e: MotionEvent) = true
 
-            override fun onScroll(
-                e1: MotionEvent?, e2: MotionEvent, dx: Float, dy: Float,
-            ): Boolean {
-                if (dragMode != DragMode.NONE || scaleDetector.isInProgress) return false
+            override fun onScroll(e1: MotionEvent?, e2: MotionEvent, dx: Float, dy: Float): Boolean {
+                if (state is SelectionState.Adjusting || scaleDetector.isInProgress) return false
                 imageMatrix.postTranslate(-dx, -dy)
                 clampTranslation()
                 syncInverse()
                 invalidate()
-                if (selStart != -1) notifySelection()
+                notifySelection()
                 return true
             }
 
@@ -321,16 +342,14 @@ class SelectableOcrView @JvmOverloads constructor(
                 val hit = wordAt(e.x, e.y, forgiving = true)
                 val now = SystemClock.uptimeMillis()
                 if (hit != -1 && hit == lastLineTapWord && now - lastLineTapTime < 700L) {
-                    // Third tap on the same word selects its whole paragraph.
                     selectParagraph(hit)
                     lastLineTapTime = 0L
                     return true
                 }
                 if (hit != -1) {
-                    selStart = hit
-                    selEnd = hit
+                    state = SelectionState.Selected(hit, hit)
                     performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
-                    notifySelection()
+                    notifySelection(announce = true)
                 } else {
                     clearSelection()
                 }
@@ -353,21 +372,18 @@ class SelectableOcrView @JvmOverloads constructor(
                 clampTranslation()
                 syncInverse()
                 invalidate()
-                if (selStart != -1) notifySelection()
+                notifySelection()
                 return true
             }
 
             override fun onLongPress(e: MotionEvent) {
                 val hit = wordAt(e.x, e.y, forgiving = true)
-                if (hit != -1) {
-                    dragMode = DragMode.SWEEP
-                    dragAnchorWord = hit
-                    selStart = hit
-                    selEnd = hit
-                    performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                    notifySelection()
-                    invalidate()
-                }
+                if (hit == -1) return
+                state = SelectionState.Adjusting(hit, hit, DragMode.SWEEP, hit, e.x, e.y)
+                listener?.onSelectionAdjustingChanged(true)
+                performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                notifySelection()
+                invalidate()
             }
         })
 
@@ -382,29 +398,42 @@ class SelectableOcrView @JvmOverloads constructor(
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                dragMode = when {
+                if (state is SelectionState.Adjusting) return true
+                val mode = when {
                     hitsHandle(event.x, event.y, start = true) -> DragMode.HANDLE_START
                     hitsHandle(event.x, event.y, start = false) -> DragMode.HANDLE_END
-                    else -> DragMode.NONE
+                    else -> null
                 }
-                if (dragMode != DragMode.NONE) {
+                val current = range
+                if (mode != null && current != null) {
+                    state = SelectionState.Adjusting(
+                        current.first, current.second, mode,
+                        if (mode == DragMode.HANDLE_START) current.first else current.second,
+                        event.x, event.y
+                    )
                     parent?.requestDisallowInterceptTouchEvent(true)
-                    // Keep handle drags away from the gesture detectors, otherwise
-                    // their long-press timer fires mid-drag and resets the selection.
+                    listener?.onSelectionAdjustingChanged(true)
+                    notifySelection()
+                    invalidate()
                     return true
                 }
             }
+
             MotionEvent.ACTION_MOVE -> {
-                if (dragMode != DragMode.NONE && event.pointerCount == 1) {
-                    onSelectionDrag(event.x, event.y)
+                val adjusting = state as? SelectionState.Adjusting
+                if (adjusting != null && event.pointerCount == 1) {
+                    onSelectionDrag(adjusting, event.x, event.y)
                     return true
                 }
             }
+
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                if (dragMode != DragMode.NONE) {
-                    dragMode = DragMode.NONE
-                    dragAnchorWord = -1
-                    if (selStart != -1) notifySelection()
+                val adjusting = state as? SelectionState.Adjusting
+                if (adjusting != null) {
+                    state = SelectionState.Selected(adjusting.start, adjusting.end)
+                    listener?.onSelectionAdjustingChanged(false)
+                    notifySelection(announce = true)
+                    invalidate()
                     return true
                 }
             }
@@ -414,57 +443,62 @@ class SelectableOcrView @JvmOverloads constructor(
         return handled || super.onTouchEvent(event)
     }
 
-    private fun onSelectionDrag(x: Float, y: Float) {
-        dragPointX = x
-        dragPointY = y
+    private fun onSelectionDrag(old: SelectionState.Adjusting, x: Float, y: Float) {
         val nearest = nearestWord(x, y)
-        if (nearest == -1) return
-        val oldStart = selStart
-        val oldEnd = selEnd
-        when (dragMode) {
+        if (nearest == -1) {
+            state = old.copy(x = x, y = y)
+            invalidate()
+            return
+        }
+        var start = old.start
+        var end = old.end
+        var mode = old.mode
+        when (old.mode) {
             DragMode.SWEEP -> {
-                selStart = min(dragAnchorWord, nearest)
-                selEnd = max(dragAnchorWord, nearest)
+                start = min(old.anchorWord, nearest)
+                end = max(old.anchorWord, nearest)
             }
             DragMode.HANDLE_START -> {
-                if (nearest <= selEnd) selStart = nearest else {
-                    // Crossed over the other handle: swap roles.
-                    selStart = selEnd
-                    selEnd = nearest
-                    dragMode = DragMode.HANDLE_END
+                if (nearest <= end) start = nearest else {
+                    start = end
+                    end = nearest
+                    mode = DragMode.HANDLE_END
                 }
             }
             DragMode.HANDLE_END -> {
-                if (nearest >= selStart) selEnd = nearest else {
-                    selEnd = selStart
-                    selStart = nearest
-                    dragMode = DragMode.HANDLE_START
+                if (nearest >= start) end = nearest else {
+                    end = start
+                    start = nearest
+                    mode = DragMode.HANDLE_START
                 }
             }
-            DragMode.NONE -> return
         }
-        if (selStart != oldStart || selEnd != oldEnd) {
+        val changed = start != old.start || end != old.end
+        state = SelectionState.Adjusting(start, end, mode, old.anchorWord, x, y)
+        if (changed) {
             performHapticFeedback(
                 if (Build.VERSION.SDK_INT >= 27) HapticFeedbackConstants.TEXT_HANDLE_MOVE
                 else HapticFeedbackConstants.CONTEXT_CLICK
             )
             notifySelection()
-            invalidate()
         }
+        // Always invalidate: the loupe follows the finger even inside one word.
+        invalidate()
     }
 
     // ------------------------------------------------------------- hit tests
 
-    /** Maps a view point into bitmap space. */
-    private fun toBitmapSpace(x: Float, y: Float): Pair<Float, Float> {
-        val pts = floatArrayOf(x, y)
-        inverseMatrix.mapPoints(pts)
-        return pts[0] to pts[1]
+    private fun toBitmapSpace(x: Float, y: Float, out: FloatArray) {
+        out[0] = x
+        out[1] = y
+        inverseMatrix.mapPoints(out)
     }
 
     private fun wordAt(vx: Float, vy: Float, forgiving: Boolean): Int {
         val r = result ?: return -1
-        val (x, y) = toBitmapSpace(vx, vy)
+        toBitmapSpace(vx, vy, mappedPoint)
+        val x = mappedPoint[0]
+        val y = mappedPoint[1]
         val slop = if (forgiving) dp(6f) / currentScale else 0f
         r.words.forEachIndexed { i, w ->
             if (x >= w.box.left - slop && x <= w.box.right + slop &&
@@ -476,13 +510,14 @@ class SelectableOcrView @JvmOverloads constructor(
 
     private fun nearestWord(vx: Float, vy: Float): Int {
         val r = result ?: return -1
-        val (x, y) = toBitmapSpace(vx, vy)
+        toBitmapSpace(vx, vy, mappedPoint)
+        val x = mappedPoint[0]
+        val y = mappedPoint[1]
         var best = -1
         var bestDist = Float.MAX_VALUE
         r.words.forEachIndexed { i, w ->
             val dx = max(0f, max(w.box.left - x, x - w.box.right))
             val dy = max(0f, max(w.box.top - y, y - w.box.bottom))
-            // Weight vertical distance heavier so sweeping follows lines naturally.
             val d = dx * dx + dy * dy * 9f
             if (d < bestDist) {
                 bestDist = d
@@ -493,52 +528,101 @@ class SelectableOcrView @JvmOverloads constructor(
     }
 
     private fun hitsHandle(x: Float, y: Float, start: Boolean): Boolean {
-        if (selStart == -1) return false
-        val r = result ?: return false
-        val rect = RectF(if (start) r.words[selStart].box else r.words[selEnd].box)
-        imageMatrix.mapRect(rect)
-        rect.inset(-dp(3f), -dp(3f))
+        val (first, last) = range ?: return false
+        populateHandleRects(first, last)
+        val rect = if (start) firstRect else lastRect
         val hx = if (start) rect.left else rect.right
         val hy = if (start) rect.top - handleRadius * 0.7f else rect.bottom + handleRadius * 0.7f
         return abs(x - hx) < handleTouchRadius && abs(y - hy) < handleTouchRadius
     }
 
-    // ------------------------------------------------------------ helpers
-
     private fun clampTranslation() {
         val bmp = bitmap ?: return
-        val rect = RectF(0f, 0f, bmp.width.toFloat(), bmp.height.toFloat())
-        imageMatrix.mapRect(rect)
+        scratchRect.set(0f, 0f, bmp.width.toFloat(), bmp.height.toFloat())
+        imageMatrix.mapRect(scratchRect)
         var dx = 0f
         var dy = 0f
-        if (rect.width() <= width) {
-            dx = (width - rect.width()) / 2f - rect.left
+        if (scratchRect.width() <= width) {
+            dx = (width - scratchRect.width()) / 2f - scratchRect.left
         } else {
-            if (rect.left > 0) dx = -rect.left
-            if (rect.right < width) dx = width - rect.right
+            if (scratchRect.left > 0) dx = -scratchRect.left
+            if (scratchRect.right < width) dx = width - scratchRect.right
         }
-        if (rect.height() <= height) {
-            dy = (height - rect.height()) / 2f - rect.top
+        if (scratchRect.height() <= height) {
+            dy = (height - scratchRect.height()) / 2f - scratchRect.top
         } else {
-            if (rect.top > 0) dy = -rect.top
-            if (rect.bottom < height) dy = height - rect.bottom
+            if (scratchRect.top > 0) dy = -scratchRect.top
+            if (scratchRect.bottom < height) dy = height - scratchRect.bottom
         }
         imageMatrix.postTranslate(dx, dy)
     }
 
-    private fun notifySelection() {
+    private fun notifySelection(announce: Boolean = false) {
         val r = result
-        if (r == null || selStart == -1) {
+        val selectedRange = range
+        if (r == null || selectedRange == null) {
             contentDescription = context.getString(R.string.recognized_text)
             listener?.onSelectionChanged(null, null)
             return
         }
-        val anchor = RectF(r.words[selStart].box)
-        for (i in selStart..selEnd) anchor.union(r.words[i].box)
-        imageMatrix.mapRect(anchor)
-        val text = r.textOf(selStart, selEnd)
+        firstRect.set(r.words[selectedRange.first].box)
+        for (i in selectedRange.first..selectedRange.second) firstRect.union(r.words[i].box)
+        imageMatrix.mapRect(firstRect)
+        val text = r.textOf(selectedRange.first, selectedRange.second)
         contentDescription = context.getString(R.string.selection_announcement, text)
-        announceForAccessibility(contentDescription)
-        listener?.onSelectionChanged(text, anchor)
+        if (announce) announceForAccessibility(contentDescription)
+        listener?.onSelectionChanged(text, firstRect)
+    }
+
+    // ---------------------------------------------------------- accessibility
+
+    override fun getAccessibilityNodeProvider(): AccessibilityNodeProvider = wordNodeProvider
+
+    private val wordNodeProvider = object : AccessibilityNodeProvider() {
+        override fun createAccessibilityNodeInfo(virtualViewId: Int): AccessibilityNodeInfo? {
+            if (virtualViewId == HOST_VIEW_ID) {
+                return super.createAccessibilityNodeInfo(virtualViewId)?.apply {
+                    contentDescription = context.getString(R.string.recognized_text)
+                }
+            }
+            val r = result ?: return null
+            if (virtualViewId !in r.words.indices) return null
+            val word = r.words[virtualViewId]
+            scratchRect.set(word.box)
+            imageMatrix.mapRect(scratchRect)
+            val bounds = Rect(
+                scratchRect.left.toInt(), scratchRect.top.toInt(),
+                scratchRect.right.toInt(), scratchRect.bottom.toInt()
+            )
+            return AccessibilityNodeInfo.obtain(this@SelectableOcrView, virtualViewId).apply {
+                text = word.text
+                contentDescription = context.getString(
+                    R.string.word_announcement, virtualViewId + 1, word.text
+                )
+                setBoundsInParent(bounds)
+                isEnabled = true
+                isVisibleToUser = true
+                addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_CLICK)
+                addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_LONG_CLICK)
+            }
+        }
+
+        override fun performAction(virtualViewId: Int, action: Int, arguments: Bundle?): Boolean {
+            if (virtualViewId !in (result?.words?.indices ?: emptyList())) return false
+            when (action) {
+                AccessibilityNodeInfo.ACTION_CLICK -> {
+                    state = SelectionState.Selected(virtualViewId, virtualViewId)
+                    notifySelection(announce = true)
+                    invalidate()
+                    sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_SELECTED)
+                    return true
+                }
+                AccessibilityNodeInfo.ACTION_LONG_CLICK -> {
+                    selectLine(virtualViewId)
+                    return true
+                }
+            }
+            return super.performAction(virtualViewId, action, arguments)
+        }
     }
 }

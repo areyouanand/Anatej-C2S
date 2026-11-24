@@ -79,15 +79,24 @@ object OcrEngine {
 
     suspend fun recognize(bitmap: Bitmap, script: String = CaptureAccessibilityService.SCRIPT_LATIN): Result {
         if (script == CaptureAccessibilityService.SCRIPT_AUTO && OcrScripts.available.size > 2) {
-            var best = recognizeWith(bitmap, CaptureAccessibilityService.SCRIPT_LATIN)
+            val latin = recognizeWith(bitmap, CaptureAccessibilityService.SCRIPT_LATIN)
+            val detected = ScriptDetector.preference(ScriptDetector.detect(latin.fullText))
+            if (detected != CaptureAccessibilityService.SCRIPT_LATIN &&
+                detected in OcrScripts.available
+            ) {
+                val specific = recognizeWith(bitmap, detected)
+                if (specific.words.isNotEmpty()) return specific
+            }
+            if (latin.words.isNotEmpty()) return latin
+            // No readable Latin result: try each bundled script until one works.
             for (candidate in OcrScripts.available) {
                 if (candidate == CaptureAccessibilityService.SCRIPT_LATIN ||
                     candidate == CaptureAccessibilityService.SCRIPT_AUTO
                 ) continue
                 val attempt = recognizeWith(bitmap, candidate)
-                if (attempt.words.size > best.words.size) best = attempt
+                if (attempt.words.isNotEmpty()) return attempt
             }
-            return best
+            return latin
         }
         return recognizeWith(bitmap, script)
     }

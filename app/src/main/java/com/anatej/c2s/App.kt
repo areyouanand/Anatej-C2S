@@ -10,8 +10,10 @@ class App : Application() {
         super.onCreate()
         applyTheme(this)
         DynamicColors.applyToActivitiesIfAvailable(this)
-        // Warm up the recognizer so the first shared image is instant.
-        OcrEngine.warmUp()
+        ClipboardHistory.migrateLegacy(this)
+        // Warm up the recognizer so the first shared image is instant. A model
+        // initialization failure must not prevent the app from opening.
+        runCatching { OcrEngine.warmUp() }
     }
 
     companion object {

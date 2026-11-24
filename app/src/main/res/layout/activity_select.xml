@@ -32,6 +32,13 @@
             android:layout_height="1dp"
             android:layout_weight="1" />
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnMode"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/crop_mode_draw" />
+
         <ImageButton
             android:id="@+id/btnRotate"
             style="@style/ViewerIconButton"
@@ -54,4 +61,36 @@
         android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="32dp"
         android:text="@string/whole_screen" />
+
+    <LinearLayout
+        android:id="@+id/captureExpiredGroup"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="?android:colorBackground"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="32dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/capture_expired_title"
+            android:textAppearance="?attr/textAppearanceHeadlineSmall" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
+            android:text="@string/capture_expired_body"
+            android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnExpiredDone"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="@string/open_app" />
+    </LinearLayout>
 </FrameLayout>

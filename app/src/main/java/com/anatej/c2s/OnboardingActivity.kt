@@ -5,6 +5,9 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.addCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import com.anatej.c2s.CaptureAccessibilityService.Companion.PREFS
 import com.anatej.c2s.CaptureAccessibilityService.Companion.PREF_ONBOARDING_DONE
 import com.anatej.c2s.databinding.ActivityOnboardingBinding
@@ -14,6 +17,11 @@ class OnboardingActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityOnboardingBinding
     private var step = 0
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt("step", step)
+    }
 
     private val titles by lazy {
         arrayOf(
@@ -34,6 +42,19 @@ class OnboardingActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityOnboardingBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        step = savedInstanceState?.getInt("step") ?: 0
+        val baseLeft = binding.root.paddingLeft
+        val baseTop = binding.root.paddingTop
+        val baseRight = binding.root.paddingRight
+        val baseBottom = binding.root.paddingBottom
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.updatePadding(
+                baseLeft + bars.left, baseTop + bars.top,
+                baseRight + bars.right, baseBottom + bars.bottom
+            )
+            insets
+        }
         render()
 
         binding.btnNext.setOnClickListener {

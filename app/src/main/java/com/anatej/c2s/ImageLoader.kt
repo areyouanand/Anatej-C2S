@@ -30,9 +30,8 @@ object ImageLoader {
         }
 
         var sample = 1
-        while (bounds.outWidth / (sample * 2) >= MAX_DIMENSION ||
-            bounds.outHeight / (sample * 2) >= MAX_DIMENSION
-        ) sample *= 2
+        val longest = maxOf(bounds.outWidth, bounds.outHeight)
+        while (longest / sample > MAX_DIMENSION) sample *= 2
 
         val opts = BitmapFactory.Options().apply {
             inSampleSize = sample

@@ -18,20 +18,28 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * Shows the frozen screenshot and lets the user draw around the text to copy.
- * The drawn region is stored in bitmap pixel coordinates and returned as a crop.
- * Pinch with two fingers to zoom into dense text.
+ * Frozen screenshot crop view. One finger draws in Draw mode and pans in Pan
+ * mode; two fingers always zoom. The selected lasso is shown undimmed.
  */
 class RegionSelectView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
 ) : View(context, attrs) {
 
+    enum class Mode { DRAW, PAN }
+
     fun interface Listener {
         fun onRegionSelected(bitmap: Bitmap)
     }
 
     var listener: Listener? = null
+    var mode: Mode = Mode.DRAW
+        set(value) {
+            field = value
+            contentDescription = context.getString(
+                if (value == Mode.DRAW) R.string.crop_mode_draw else R.string.crop_mode_pan
+            )
+        }
 
     private var bitmap: Bitmap? = null
     private val imageMatrix = Matrix()
@@ -44,19 +52,21 @@ class RegionSelectView @JvmOverloads constructor(
     private var hasRegion = false
     private val pointsBmp = ArrayList<Pair<Float, Float>>()
     private var scaling = false
+    private var panning = false
+    private var lastX = 0f
+    private var lastY = 0f
+    private val mappedPoint = FloatArray(2)
 
     private val density = resources.displayMetrics.density
     private fun dp(v: Float) = v * density
 
     private val dimPaint = Paint().apply { color = 0x99000000.toInt() }
     private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0xFFFFFFFF.toInt()
-        style = Paint.Style.STROKE
-        strokeWidth = dp(3f)
+        color = 0xFFFFFFFF.toInt(); style = Paint.Style.STROKE; strokeWidth = dp(3f)
+        strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
     }
     private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0x33FFFFFF.toInt()
-        style = Paint.Style.FILL
+        color = 0x11FFFFFF; style = Paint.Style.FILL
     }
     private val bitmapPaint = Paint(Paint.FILTER_BITMAP_FLAG)
 
@@ -69,7 +79,14 @@ class RegionSelectView @JvmOverloads constructor(
     fun setBitmap(bmp: Bitmap) {
         bitmap = bmp
         resetPath()
+        scaling = false
+        panning = false
         if (width > 0 && height > 0) fitBitmap()
+        invalidate()
+    }
+
+    fun resetZoom() {
+        fitBitmap()
         invalidate()
     }
 
@@ -103,37 +120,45 @@ class RegionSelectView @JvmOverloads constructor(
         canvas.drawColor(Color.BLACK)
         canvas.drawBitmap(bmp, imageMatrix, bitmapPaint)
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), dimPaint)
-
         if (!hasRegion || pointsBmp.size < 2) return
+
         path.reset()
-        val mapped = floatArrayOf(0f, 0f)
         pointsBmp.forEachIndexed { index, point ->
-            mapped[0] = point.first
-            mapped[1] = point.second
-            imageMatrix.mapPoints(mapped)
-            if (index == 0) path.moveTo(mapped[0], mapped[1])
-            else path.lineTo(mapped[0], mapped[1])
+            mappedPoint[0] = point.first
+            mappedPoint[1] = point.second
+            imageMatrix.mapPoints(mappedPoint)
+            if (index == 0) path.moveTo(mappedPoint[0], mappedPoint[1])
+            else path.lineTo(mappedPoint[0], mappedPoint[1])
         }
+        path.close()
+
+        // Re-draw only the lasso interior without the dim layer.
+        canvas.save()
+        canvas.clipPath(path)
+        canvas.drawBitmap(bmp, imageMatrix, bitmapPaint)
+        canvas.restore()
         canvas.drawPath(path, fillPaint)
         canvas.drawPath(path, strokePaint)
     }
 
     private fun toBitmapSpace(vx: Float, vy: Float): Pair<Float, Float> {
-        val pts = floatArrayOf(vx, vy)
-        inverseMatrix.mapPoints(pts)
-        return pts[0] to pts[1]
+        mappedPoint[0] = vx
+        mappedPoint[1] = vy
+        inverseMatrix.mapPoints(mappedPoint)
+        return mappedPoint[0] to mappedPoint[1]
     }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (bitmap == null) return false
+        scaleDetector.onTouchEvent(event)
 
         if (event.pointerCount > 1 || scaling) {
             if (!scaling) {
                 scaling = true
+                panning = false
                 resetPath()
             }
-            scaleDetector.onTouchEvent(event)
             if (event.actionMasked == MotionEvent.ACTION_UP ||
                 event.actionMasked == MotionEvent.ACTION_CANCEL
             ) scaling = false
@@ -142,6 +167,12 @@ class RegionSelectView @JvmOverloads constructor(
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                lastX = event.x
+                lastY = event.y
+                if (mode == Mode.PAN) {
+                    panning = true
+                    return true
+                }
                 resetPath()
                 val point = toBitmapSpace(event.x, event.y)
                 pointsBmp.add(point)
@@ -152,6 +183,15 @@ class RegionSelectView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_MOVE -> {
+                if (mode == Mode.PAN && panning) {
+                    imageMatrix.postTranslate(event.x - lastX, event.y - lastY)
+                    lastX = event.x
+                    lastY = event.y
+                    clampTranslation()
+                    imageMatrix.invert(inverseMatrix)
+                    invalidate()
+                    return true
+                }
                 if (!hasRegion) return true
                 for (i in 0 until event.historySize) {
                     val point = toBitmapSpace(event.getHistoricalX(i), event.getHistoricalY(i))
@@ -166,7 +206,8 @@ class RegionSelectView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_UP -> {
-                if (!hasRegion) return true
+                panning = false
+                if (mode == Mode.PAN || !hasRegion) return true
                 val point = toBitmapSpace(event.x, event.y)
                 pointsBmp.add(point)
                 regionBmp.union(point.first, point.second)
@@ -189,6 +230,7 @@ class RegionSelectView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_CANCEL -> {
+                panning = false
                 resetPath()
                 invalidate()
                 return true
@@ -200,16 +242,37 @@ class RegionSelectView @JvmOverloads constructor(
     private val scaleDetector = ScaleGestureDetector(context,
         object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
             override fun onScale(detector: ScaleGestureDetector): Boolean {
-                val target = (currentScale * detector.scaleFactor)
-                    .coerceIn(baseScale * 0.8f, baseScale * 10f)
+                val target = (currentScale * detector.scaleFactor).coerceIn(baseScale * 0.8f, baseScale * 10f)
                 val factor = target / currentScale
                 currentScale = target
                 imageMatrix.postScale(factor, factor, detector.focusX, detector.focusY)
+                clampTranslation()
                 imageMatrix.invert(inverseMatrix)
                 invalidate()
                 return true
             }
         })
+
+    private fun clampTranslation() {
+        val bmp = bitmap ?: return
+        val rect = RectF(0f, 0f, bmp.width.toFloat(), bmp.height.toFloat())
+        imageMatrix.mapRect(rect)
+        var dx = 0f
+        var dy = 0f
+        if (rect.width() <= width) {
+            dx = (width - rect.width()) / 2f - rect.left
+        } else {
+            if (rect.left > 0) dx = -rect.left
+            if (rect.right < width) dx = width - rect.right
+        }
+        if (rect.height() <= height) {
+            dy = (height - rect.height()) / 2f - rect.top
+        } else {
+            if (rect.top > 0) dy = -rect.top
+            if (rect.bottom < height) dy = height - rect.bottom
+        }
+        imageMatrix.postTranslate(dx, dy)
+    }
 
     private fun cropAndReturn() {
         val bmp = bitmap ?: return
@@ -223,9 +286,7 @@ class RegionSelectView @JvmOverloads constructor(
             listener?.onRegionSelected(bmp)
             return
         }
-        val cropped = runCatching {
-            Bitmap.createBitmap(bmp, left, top, width, height)
-        }.getOrNull() ?: bmp
+        val cropped = runCatching { Bitmap.createBitmap(bmp, left, top, width, height) }.getOrNull() ?: bmp
         resetPath()
         listener?.onRegionSelected(cropped)
     }

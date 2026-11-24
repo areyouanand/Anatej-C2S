@@ -7,10 +7,16 @@
     android:background="?android:colorBackground">
 
     <!-- ============================== Home ============================== -->
-    <LinearLayout
+    <androidx.core.widget.NestedScrollView
         android:id="@+id/homeGroup"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
         android:orientation="vertical"
         android:gravity="center"
         android:padding="32dp">
@@ -110,6 +116,7 @@
             android:textAppearance="?attr/textAppearanceBodySmall"
             android:textColor="?android:textColorSecondary" />
     </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
     <!-- ============================== Viewer ============================ -->
     <FrameLayout
@@ -168,6 +175,13 @@
                 style="@style/ViewerIconButton"
                 android:contentDescription="@string/share"
                 android:src="@drawable/ic_share" />
+
+            <ImageButton
+                android:id="@+id/btnCodes"
+                style="@style/ViewerIconButton"
+                android:contentDescription="@string/barcodes_found"
+                android:src="@drawable/ic_qr"
+                android:visibility="gone" />
         </LinearLayout>
 
         <com.google.android.material.card.MaterialCardView
@@ -230,6 +244,32 @@
                 android:paddingHorizontal="12dp" />
         </HorizontalScrollView>
     </FrameLayout>
+
+    <!-- ============================== Error ============================== -->
+    <LinearLayout
+        android:id="@+id/errorGroup"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="?android:colorBackground"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="32dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/errorText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textAppearance="?attr/textAppearanceBodyLarge" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRetry"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/retry" />
+    </LinearLayout>
 
     <!-- ============================= Progress ============================ -->
     <FrameLayout

@@ -58,7 +58,7 @@
     <string name="color_purple">Lila</string>
     <string name="color_orange">Orange</string>
     <string name="a11y_label">Anatej C2S Aufnahme</string>
-    <string name="a11y_description">Ermöglicht Anatej C2S, den aktuellen Bildschirm aufzunehmen, wenn du den schwebenden Auswähler tippst, eine untere Ecke wischst oder die Kachel „OCR Screenshot" tippst. Anatej C2S erstellt nur auf Anfrage einen Screenshot. Es liest keine Bildschirminhalte, beobachtet keine Eingaben und hat keinen Internetzugriff.</string>
+    <string name="a11y_description">Ermöglicht Anatej C2S, den aktuellen Bildschirm aufzunehmen, wenn du den schwebenden Auswähler tippst, eine untere Ecke wischst oder die Kachel „OCR Screenshot“ tippst. Ein Screenshot wird nur auf Anfrage erstellt. Zum Ausblenden beim Tippen prüft die App, ob das fokussierte Feld editierbar ist und ob ein Tastaturfenster existiert; sie liest weder Text noch Bildschirminhalte. Es gibt keinen Internetzugriff.</string>
     <string name="capture_failed">Aufnahme fehlgeschlagen, letzter Screenshot wird geöffnet</string>
 
     <string name="no_text_found">Kein Text im Bild gefunden</string>
@@ -132,4 +132,49 @@
     <string name="clipboard_clear">Verlauf löschen</string>
     <string name="clipboard_cleared">Verlauf gelöscht</string>
     <string name="clipboard_item">Kopierter Text %1$d</string>
+
+    <string name="settings_export_failed">Einstellungen konnten nicht exportiert werden</string>
+    <string name="history_enabled">Kopierten Text im Verlauf speichern</string>
+    <string name="history_expiry">Aufbewahrungsdauer</string>
+    <string name="history_lock">Geräteentsperrung verlangen</string>
+    <string name="history_expiry_hour">1 Stunde</string>
+    <string name="history_expiry_day">1 Tag</string>
+    <string name="history_expiry_week">1 Woche</string>
+    <string name="history_expiry_never">Nie</string>
+    <string name="history_privacy_note">Der Verlauf ist standardmäßig aus, wird getrennt gespeichert, nicht gesichert und nach der gewählten Zeit gelöscht.</string>
+
+    <string name="crop_mode">Zuschneidemodus</string>
+    <string name="crop_mode_draw">Zeichnen</string>
+    <string name="crop_mode_pan">Verschieben</string>
+    <string name="capture_expired_title">Aufnahme abgelaufen</string>
+    <string name="capture_expired_body">Android hat den eingefrorenen Screenshot entfernt. Kehre zur App zurück und starte die Aufnahme erneut.</string>
+    <string name="open_app">App öffnen</string>
+
+    <string name="save_text">Als Text speichern</string>
+    <string name="text_saved">Text gespeichert</string>
+    <string name="save_failed">Text konnte nicht gespeichert werden</string>
+    <string name="retry">Erneut versuchen</string>
+    <string name="history_no_lock">Keine Gerätesperre eingerichtet; der Verlauf kann nicht gesperrt werden</string>
+    <string name="recognized_text_editable">Erkannter Text. Du kannst ihn vor dem Kopieren oder Speichern bearbeiten.</string>
+
+    <string name="barcode_wifi">WLAN-Netzwerk</string>
+    <string name="barcode_contact">Kontakt</string>
+    <string name="barcode_calendar">Kalendertermin</string>
+    <string name="barcode_sms">Textnachricht</string>
+    <string name="barcode_location">Standort</string>
+    <string name="barcode_url">Link</string>
+    <string name="barcode_details">Code-Details</string>
+    <string name="copy_details">Details kopieren</string>
+    <string name="copy_password">Passwort kopieren</string>
+    <string name="open_calendar">Zum Kalender hinzufügen</string>
+    <string name="send_sms">Nachricht senden</string>
+
+    <string name="replay_intro">Einführung erneut anzeigen</string>
+    <string name="gesture_help">Gesten-Hilfe</string>
+    <string name="help_title">Gesten-Hilfe</string>
+    <string name="gesture_help_body">Tippe auf ein Wort, um es auszuwählen. Doppeltippen wählt die Zeile, Dreifachtippen den Absatz. Ziehe an den runden Griffen, um die Auswahl anzupassen. Mit zwei Fingern zoomen und mit einem Finger verschieben. Im Zuschneidebildschirm zwischen Zeichnen und Verschieben wechseln.</string>
+    <string name="about_variant">Version: %1$s</string>
+    <string name="variant_latin">Lateinische Texterkennung</string>
+    <string name="variant_full">Alle Sprachen</string>
+    <string name="word_announcement">Wort %1$d: %2$s</string>
 </resources>

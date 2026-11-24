@@ -24,7 +24,7 @@
     <string name="floating_bubble_on">Floating picker: on</string>
     <string name="floating_bubble_off">Floating picker: off</string>
     <string name="a11y_label">Anatej C2S capture</string>
-    <string name="a11y_description">Lets Anatej C2S capture the current screen when you tap the floating picker, swipe a bottom corner, or use the OCR screenshot tile. Anatej C2S only takes a screenshot when you ask it to. It does not read screen content, does not observe your input and has no internet access.</string>
+    <string name="a11y_description">Lets Anatej C2S capture the current screen when you tap the floating picker, swipe a bottom corner, or use the OCR screenshot tile. It takes a screenshot only when you ask. To hide the picker while typing, it checks whether the focused field is editable and whether a keyboard window exists; it does not read text or screen content. It has no internet access.</string>
     <string name="capture_failed">Screen capture failed, opening latest screenshot instead</string>
     <string name="pick_region_hint">Draw around the text you want to copy</string>
     <string name="whole_screen">Whole screen</string>
@@ -144,4 +144,49 @@
     <string name="clipboard_clear">Clear history</string>
     <string name="clipboard_cleared">History cleared</string>
     <string name="clipboard_item">Copied text %1$d</string>
+
+    <string name="settings_export_failed">Could not export settings</string>
+    <string name="history_enabled">Save copied text to history</string>
+    <string name="history_expiry">History expiry</string>
+    <string name="history_lock">Require device unlock</string>
+    <string name="history_expiry_hour">1 hour</string>
+    <string name="history_expiry_day">1 day</string>
+    <string name="history_expiry_week">1 week</string>
+    <string name="history_expiry_never">Never</string>
+    <string name="history_privacy_note">History is off by default, stored separately, excluded from backup, and removed after the chosen period.</string>
+
+    <string name="crop_mode">Crop mode</string>
+    <string name="crop_mode_draw">Draw</string>
+    <string name="crop_mode_pan">Pan</string>
+    <string name="capture_expired_title">Capture expired</string>
+    <string name="capture_expired_body">Android removed the frozen screenshot. Return to the app and capture again.</string>
+    <string name="open_app">Open app</string>
+
+    <string name="save_text">Save as text</string>
+    <string name="text_saved">Text saved</string>
+    <string name="save_failed">Could not save text</string>
+    <string name="retry">Retry</string>
+    <string name="history_no_lock">No device lock is set, so history cannot be locked</string>
+    <string name="recognized_text_editable">Recognized text. You can edit it before copying or saving.</string>
+
+    <string name="barcode_wifi">Wi-Fi network</string>
+    <string name="barcode_contact">Contact</string>
+    <string name="barcode_calendar">Calendar event</string>
+    <string name="barcode_sms">Text message</string>
+    <string name="barcode_location">Location</string>
+    <string name="barcode_url">Link</string>
+    <string name="barcode_details">Code details</string>
+    <string name="copy_details">Copy details</string>
+    <string name="copy_password">Copy password</string>
+    <string name="open_calendar">Add to calendar</string>
+    <string name="send_sms">Send message</string>
+
+    <string name="replay_intro">Replay introduction</string>
+    <string name="gesture_help">Gesture help</string>
+    <string name="help_title">Gesture help</string>
+    <string name="gesture_help_body">Tap a word to select it. Double-tap for the line, triple-tap for the paragraph. Drag either round handle to refine the selection. Pinch to zoom and drag with one finger to pan. In the crop screen, switch between Draw and Pan.</string>
+    <string name="about_variant">Build: %1$s</string>
+    <string name="variant_latin">Latin OCR</string>
+    <string name="variant_full">Full languages</string>
+    <string name="word_announcement">Word %1$d: %2$s</string>
 </resources>

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
@@ -12,17 +11,27 @@
         android:text="@string/recognized_text"
         android:textAppearance="?attr/textAppearanceTitleMedium" />
 
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="@string/recognized_text_editable"
+        android:textAppearance="?attr/textAppearanceBodySmall"
+        android:textColor="?android:textColorSecondary" />
+
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
         android:layout_weight="1"
         android:layout_marginTop="12dp">
 
-        <TextView
+        <EditText
             android:id="@+id/sheetText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textIsSelectable="true"
+            android:gravity="top"
+            android:inputType="textMultiLine|textCapSentences"
+            android:minLines="6"
             android:textAppearance="?attr/textAppearanceBodyMedium" />
     </androidx.core.widget.NestedScrollView>
 
@@ -30,8 +39,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:orientation="horizontal"
-        android:gravity="end">
+        android:gravity="end"
+        android:orientation="horizontal">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/sheetShare"
@@ -39,6 +48,14 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/share" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/sheetSave"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="@string/save_text" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/sheetCopy"

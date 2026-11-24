@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.2.0
+
+- Fixed the selection magnifier lingering over the action toolbar and made
+  handle geometry match the visible selection.
+- Added explicit Idle / Selected / Adjusting selection state and accessibility
+  nodes for recognized words.
+- Added Draw/Pan crop modes, bounded pinch zoom, undimmed lasso preview and
+  lifecycle-safe selector bitmap retention.
+- Added a single request-checked capture session, safe service teardown, stable
+  overlay restoration and bubble position persistence/clamping.
+- Added reliable keyboard suppression using IME windows with an editable-focus
+  fallback, plus operational call-suppression state.
+- Fixed quick-settings and bubble captures including the picker overlay.
+- Moved public launcher/share handling to a non-privileged trampoline so internal
+  capture commands cannot be injected into MainActivity.
+- Fixed captured-image OCR crashes and stale out-of-order recognition results.
+- Added bounded asynchronous settings import/export with schema validation.
+- Excluded clipboard history from settings export and Android backup; history
+  is now opt-in, expiring and optionally protected by device unlock.
+- Added structured QR/barcode actions and non-interrupting code results.
+- Added editable recognized text and Save as `.txt`.
+- Added script-aware OCR Auto mode, conservative smart actions and HTTP link
+  handling.
+- Added gesture help, replayable introduction and build variant in About.
+- Fixed image downsampling, edge-to-edge insets and small-screen scrolling.
+- Added unit tests, an emulator smoke test and GitHub Actions CI.
+- Added an opt-in x86_64 debug ABI for emulator verification; release APKs stay ARM-only.
+
 ## 1.1.0
 
 - Added confirmation vibration and an optional capture sound.

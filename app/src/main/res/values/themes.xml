@@ -6,6 +6,12 @@
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
 
+    <style name="Theme.AnatejC2S.Translucent" parent="Theme.AnatejC2S">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
+
     <style name="ViewerIconButton">
         <item name="android:layout_width">48dp</item>
         <item name="android:layout_height">48dp</item>

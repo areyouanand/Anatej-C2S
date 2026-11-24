@@ -1,5 +1,7 @@
 # Anatej C2S
 
+[![CI](https://github.com/areyouanand/Anatej-C2S/actions/workflows/ci.yml/badge.svg)](https://github.com/areyouanand/Anatej-C2S/actions/workflows/ci.yml)
+
 Anatej C2S copies text from anywhere on an Android screen. It reads pixels, not
 just selectable text nodes, so it works on images, video frames, and games.
 Recognition runs on the device with a bundled ML Kit model. The app has no
@@ -19,7 +21,9 @@ internet permission and does not need Google Play services.
   and addresses, and a local clipboard history.
 - Light, dark and system themes, haptic or sound capture feedback, and a
   one-time introduction.
-- Settings export and import; pinch zoom and rotation for awkward text.
+- Settings export and import; pinch zoom, Draw/Pan crop modes and rotation for awkward text.
+- Editable recognized text with Save as `.txt`, structured QR actions and gesture help.
+- Optional expiring clipboard history with device-unlock protection.
 
 ## Requirements
 
@@ -49,11 +53,15 @@ distance from the side, and distance from the bottom are all adjustable.
   scanning are entirely on-device.
 - Captured frames stay in memory and are not written to disk by the app.
 - No analytics, ads, accounts, or background screen monitoring.
+- Android Auto Backup and device-transfer backup are disabled. Clipboard
+  history also lives in a separate preferences file excluded by backup rules.
 - `VIBRATE` is used only for the optional capture confirmation.
 - `READ_PHONE_STATE` is optional and off by default. It is requested only if
   you enable "Hide picker during calls", and is used for nothing else.
-- Exported settings exclude clipboard history so copied text never travels
-  with them.
+- Clipboard history is off by default, capped, expiring and excluded from
+  settings export.
+- Keyboard hiding checks editable focus and keyboard-window type only; it does
+  not read typed text or screen content.
 - Windows marked `FLAG_SECURE` cannot be captured, including banking and
   password screens.
 
@@ -86,7 +94,13 @@ For signed release builds:
 
 Outputs: `app/build/outputs/apk/latin/release/app-latin-release.apk` (about 29 MB)
 and `app/build/outputs/apk/full/release/app-full-release.apk` (about 32 MB).
-Only ARM libraries are packaged; the APKs will not run on x86 emulators.
+Only ARM libraries are packaged in release APKs. For local emulator verification,
+build debug with x86_64 support:
+
+```sh
+./gradlew assembleDebug -PincludeEmulatorAbi=true
+./gradlew connectedLatinDebugAndroidTest -PincludeEmulatorAbi=true
+```
 
 The application ID is `com.anatej.c2s`. Release builds are signed with the
 keystore described below. The signing certificate SHA-256 fingerprint is:
@@ -98,7 +112,8 @@ a5a3ab4b402cb313059329cf2a4b4826d98967bc0df550079c8bbd2ed9f51b3d
 Check a downloaded APK with:
 
 ```sh
-apksigner verify --print-certs app-release.apk
+apksigner verify --print-certs app/build/outputs/apk/latin/release/app-latin-release.apk
+apksigner verify --print-certs app/build/outputs/apk/full/release/app-full-release.apk
 ```
 
 To sign release builds yourself, create
@@ -112,6 +127,17 @@ keyPassword=...
 ```
 
 Keep the keystore safe. Android rejects updates signed with a different key.
+
+## Tests
+
+```sh
+./gradlew testLatinDebugUnitTest testFullDebugUnitTest
+./gradlew lintLatinDebug lintFullDebug
+```
+
+The unit suite covers backup privacy and validation, clipboard expiry, smart
+content classification, script detection and OCR text assembly. An instrumented
+smoke test covers Home, About and Settings navigation on an emulator.
 
 ## Attribution
 
